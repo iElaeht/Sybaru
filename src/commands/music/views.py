@@ -49,6 +49,22 @@ class MusicControlView(discord.ui.View):
             await vc.disconnect()
             await interaction.response.send_message("👋 Reproducción finalizada.", ephemeral=True)
 
+    # CORRECCIÓN: Este botón ahora está bien indentado dentro de la clase
+    @discord.ui.button(label="⭐", style=discord.ButtonStyle.success)
+    async def save_song(self, interaction: discord.Interaction, button: discord.ui.Button):
+        from src.utils.database import save_to_playlist
+        
+        current = self.manager.now_playing.get(interaction.guild.id)
+        
+        if current:
+            success = save_to_playlist(interaction.user.id, current['title'], current['url'])
+            if success:
+                await interaction.response.send_message(f"✅ Guardada: **{current['title']}**", ephemeral=True)
+            else:
+                await interaction.response.send_message("💡 Esta canción ya está en tu playlist.", ephemeral=True)
+        else:
+            await interaction.response.send_message("❌ No hay nada sonando para guardar.", ephemeral=True)
+
 # --- FUNCIÓN NECESARIA PARA EL MANAGER ---
 def create_music_embed(data, user):
     embed = discord.Embed(
@@ -63,5 +79,4 @@ def create_music_embed(data, user):
 
 # --- FUNCIÓN NECESARIA PARA EL CARGADOR DE COGS ---
 async def setup(bot):
-    # No hace nada, pero evita que el bot de error al cargar el archivo
-    pass
+    pass # CORRECCIÓN: setup ahora está cerrado y no dará error

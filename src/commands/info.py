@@ -8,7 +8,7 @@ class Info(commands.Cog):
 
     @commands.hybrid_command(
         name="comandos", 
-        description="Muestra la lista de comandos disponibles de Sybaru"
+        description="Muestra la lista completa de comandos de Sybaru"
     )
     async def comandos(self, ctx):
         """Panel visual de todos los comandos de Sybaru."""
@@ -16,40 +16,63 @@ class Info(commands.Cog):
         embed = discord.Embed(
             title="🏮 Panel de Comandos de Sybaru",
             description=(
-                "¡Hola! Soy **Sybaru**, tu asistente personal de Discord.\n"
-                "Aquí tienes mi lista de funciones organizadas por categorías."
+                "¡Hola! Soy **Sybaru**. Aquí tienes mis funciones actualizadas.\n"
+                "Usa `/` para activar cualquier comando."
             ),
             color=self.color_sybaru
         )
 
-        # Reacciones
+        # --- SECCIÓN MÚSICA & PLAYLIST ---
         embed.add_field(
-            name="🎭 Reacciones (Roleplay)",
+            name="🎵 Música & Playlist Personal",
             value=(
-                "`dance`, `slap`, `hug`, `pat`, `kiss`, `bite`,\n"
-                "`kick`, `poke`, `smile`, `punch`, `shoot`,\n"
-                "`yeet`, `cry`, `blush`, `pout`, `think`,\n"
-                "`sleep`, `eat`, `wave`, `laugh`"
+                "`play`: Reproduce música o carga tus favoritos (si no escribes nada).\n"
+                "`skip`, `stop`, `loop`, `queue`: Control de reproducción.\n"
+                "`playlist_queue`: Mira tu lista guardada (Modo Libro).\n"
+                "`playlist_remove`: Borra una canción específica.\n"
+                "`playlist_clear`: Vacía toda tu lista personal."
             ),
             inline=False
         )
 
-        # Anime
+        # --- SECCIÓN ENTRETENIMIENTO ---
         embed.add_field(
-            name="🌸 Anime & Media",
-            value="`gifanime`: Busca GIFs aleatorios o de un anime específico.",
+            name="🏇 Entretenimiento & Anime",
+            value=(
+                "`uma`: Descubre qué Umamusume te acompaña hoy.\n"
+                "`gifanime`: Busca GIFs de anime (Giphy + Nekos.best)."
+            ),
             inline=False
         )
 
-        # Utilidad
+        # --- SECCIÓN ROLEPLAY ---
         embed.add_field(
-            name="🛠️ Utilidad & Info",
-            value="`userinfo`: Datos de un usuario.\n`avatar`: Mira fotos de perfil.\n`purge`: Limpiar chat.",
+            name="🎭 Reacciones (Roleplay)",
+            value=(
+                "`dance`, `slap`, `hug`, `pat`, `kiss`, `bite`, `kick`, `poke`,\n"
+                "`smile`, `punch`, `shoot`, `yeet`, `cry`, `blush`, `pout`,\n"
+                "`think`, `sleep`, `eat`, `wave`, `laugh`"
+            ),
             inline=False
         )
 
+        # --- SECCIÓN UTILIDAD ---
+        embed.add_field(
+            name="🛠️ Utilidad & Sistema",
+            value=(
+                "`userinfo`: Datos de un usuario.\n"
+                "`avatar`: Ver foto de perfil.\n"
+                "`purge`: Limpieza de mensajes."
+            ),
+            inline=False
+        )
+
+        # Estética del Embed
         embed.set_thumbnail(url=self.bot.user.display_avatar.url)
-        embed.set_footer(text=f"Sybaru Bot | Prefijo: /", icon_url=self.bot.user.display_avatar.url)
+        embed.set_footer(
+            text="Sybaru Bot | Versión 2.0 Music & Umas", 
+            icon_url=self.bot.user.display_avatar.url
+        )
 
         await ctx.send(embed=embed)
 
