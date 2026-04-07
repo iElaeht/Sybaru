@@ -1,9 +1,10 @@
 import discord
 from discord.ext import commands
 from discord import app_commands
-from src.utils.database import get_playlist, clear_playlist, remove_from_playlist
+# Importaciones sincronizadas con tu database.py
+from src.utils.database import get_playlist, clear_playlist, remove_from_playlist, save_to_playlist
 
-# --- CLASE PARA LA PAGINACIÓN ---
+# --- VISTA PARA LA PAGINACIÓN (Modo Libro) ---
 class PlaylistPagination(discord.ui.View):
     def __init__(self, data, user_name):
         super().__init__(timeout=60)
@@ -16,17 +17,17 @@ class PlaylistPagination(discord.ui.View):
         start = self.current_page * self.items_per_page
         end = start + self.items_per_page
         page_items = self.data[start:end]
-        
         total_pages = (len(self.data) - 1) // self.items_per_page + 1
         
+        # Usamos los datos (song_title, song_url) que devuelve tu fetchall()
         fmt = "\n".join([f"**{start + i + 1}.** {title}" for i, (title, url) in enumerate(page_items)])
         
         embed = discord.Embed(
             title=f"⭐ Playlist Personal de {self.user_name}",
-            description=f"Usa `/playlist_remove` seguido del número para borrar una canción.\n\n{fmt}" if fmt else "No hay canciones aquí.",
+            description=f"Gestiona tus favoritos.\n\n{fmt}" if fmt else "Tu lista está vacía.",
             color=discord.Color.gold()
         )
-        embed.set_footer(text=f"Página {self.current_page + 1} de {total_pages} • Total: {len(self.data)} canciones")
+        embed.set_footer(text=f"Página {self.current_page + 1} de {total_pages} • Total: {len(self.data)} temas")
         return embed
 
     @discord.ui.button(label="◀️ Anterior", style=discord.ButtonStyle.gray)
@@ -45,65 +46,58 @@ class PlaylistPagination(discord.ui.View):
         else:
             await interaction.response.send_message("Ya estás en la última página.", ephemeral=True)
 
-# --- CLASE PRINCIPAL DEL COG ---
+# --- COG PRINCIPAL ---
 class Playlist(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
+        # Aseguramos conexión al Manager
+        if not hasattr(bot, 'music_manager'):
+            from src.utils.music_logic import MusicManager
+            bot.music_manager = MusicManager(bot)
+        self.manager = bot.music_manager
 
-    @app_commands.command(name="playlist_load", description="Carga tu playlist personal a la cola")
-    async def load(self, interaction: discord.Interaction):
-        await interaction.response.defer()
-        songs = get_playlist(interaction.user.id)
-        
-        if not songs:
-            return await interaction.followup.send("❌ Tu playlist está vacía. ¡Guarda canciones con el botón ⭐!")
+    @app_commands.command(name="playlist_add", description="Guarda una canción en tu lista personal")
+    @app_commands.describe(busqueda="Nombre o URL de la canción para guardar")
+    async def add(self, interaction: discord.Interaction, busqueda: str):
+        await interaction.response.defer(ephemeral=True)
+        try:
+            # Buscamos la info para guardar el Título y URL real
+            info = await self.manager.buscar_info(busqueda)
+            
+            # Sincronizado con save_to_playlist de tu database.py
+            exito = save_to_playlist(interaction.user.id, info['title'], info['webpage_url'])
+            
+            if exito:
+                await interaction.followup.send(f"✅ Guardada: **{info['title']}**")
+            else:
+                await interaction.followup.send("⚠️ Esa canción ya está en tu playlist.")
+                
+        except Exception as e:
+            await interaction.followup.send(f"❌ Error al guardar: {e}")
 
-        manager = self.bot.get_cog('MusicManager')
-        if not manager:
-            return await interaction.followup.send("❌ Error: No se pudo encontrar el MusicManager.")
-
-        queue = manager.get_queue(interaction.guild.id)
-        
-        for title, url in songs:
-            queue.append({
-                'title': title,
-                'url': url,
-                'thumbnail': None,
-                'user': interaction.user
-            })
-        
-        await interaction.followup.send(f"📂 Se han cargado **{len(songs)}** canciones de tu playlist personal.")
-        
-        vc = interaction.guild.voice_client
-        if vc and not vc.is_playing():
-            ctx = await self.bot.get_context(interaction)
-            manager.play_next(ctx)
-
-    @app_commands.command(name="playlist_queue", description="Muestra tu lista de canciones guardadas (Modo Libro)")
+    @app_commands.command(name="playlist_queue", description="Muestra tus favoritos (Modo Libro)")
     async def show_queue(self, interaction: discord.Interaction):
         songs = get_playlist(interaction.user.id)
-        
         if not songs:
-            return await interaction.response.send_message("❌ No tienes canciones guardadas todavía.", ephemeral=True)
+            return await interaction.response.send_message("❌ No tienes canciones guardadas.", ephemeral=True)
         
         view = PlaylistPagination(songs, interaction.user.display_name)
         await interaction.response.send_message(embed=view.create_embed(), view=view, ephemeral=True)
 
-    @app_commands.command(name="playlist_remove", description="Elimina una canción específica de tu lista por su número")
-    @app_commands.describe(numero="El número de la canción que quieres borrar (míralo en /playlist_queue)")
+    @app_commands.command(name="playlist_remove", description="Borra una canción por su número")
     async def remove(self, interaction: discord.Interaction, numero: int):
-        # Intentamos borrar usando la función de database.py
+        # Sincronizado con remove_from_playlist de tu database.py
         success = remove_from_playlist(interaction.user.id, numero)
-        
         if success:
-            await interaction.response.send_message(f"✅ Canción **#{numero}** eliminada de tu playlist correctamente.", ephemeral=True)
+            await interaction.response.send_message(f"✅ Canción **#{numero}** eliminada.", ephemeral=True)
         else:
-            await interaction.response.send_message(f"❌ No pude encontrar la canción **#{numero}**. Verifica el número en `/playlist_queue`.", ephemeral=True)
+            await interaction.response.send_message(f"❌ No encontré la canción #{numero}.", ephemeral=True)
 
-    @app_commands.command(name="playlist_clear", description="Borra permanentemente tu playlist personal")
+    @app_commands.command(name="playlist_clear", description="Borra toda tu playlist")
     async def clear(self, interaction: discord.Interaction):
+        # Sincronizado con clear_playlist de tu database.py
         clear_playlist(interaction.user.id)
-        await interaction.response.send_message("🗑️ Tu playlist personal ha sido vaciada correctamente.", ephemeral=True)
+        await interaction.response.send_message("🗑️ Tu playlist personal ha sido vaciada.", ephemeral=True)
 
 async def setup(bot):
     await bot.add_cog(Playlist(bot))

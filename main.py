@@ -80,18 +80,11 @@ class SybaruBot(commands.Bot):
 
         print("-" * 40)
 
-        # --- SINCRONIZACIÓN DE SLASH COMMANDS ---
+# --- SINCRONIZACIÓN DE SLASH COMMANDS ---
         try:
-            if GUILD_ID:
-                # Sincronización rápida para el servidor de desarrollo definido en .env
-                guild = discord.Object(id=int(GUILD_ID))
-                self.tree.copy_global_to(guild=guild)
-                synced = await self.tree.sync(guild=guild)
-                print(f"🔃 {len(synced)} Slash Commands sincronizados en Guild: {GUILD_ID}")
-            else:
-                # Sincronización global (puede tardar un poco más en propagarse)
-                synced = await self.tree.sync()
-                print(f"🔃 {len(synced)} Slash Commands sincronizados globalmente.")
+            # Forzamos sincronización global para que limpie errores previos
+            synced = await self.tree.sync()
+            print(f"🔃 {len(synced)} Slash Commands sincronizados globalmente.")
         except Exception as e:
             print(f"❌ Error en la sincronización: {e}")
 
