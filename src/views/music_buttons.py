@@ -30,7 +30,7 @@ class QueuePagination(discord.ui.View):
             lista_texto += f"`{i:02d}.` **{titulo}**\n"
         
         embed.description += f"\n\n{lista_texto}"
-        embed.set_thumbnail(url="https://cdn-icons-png.flaticon.com/512/3844/3844721.png")
+        embed.set_thumbnail(url="https://i.postimg.cc/mk2FCD88/f408931f1a8e73a8ab555dfeb6128478.png")
         embed.set_footer(text=f"Página {self.current_page + 1} de {self.total_pages}")
         return embed
 

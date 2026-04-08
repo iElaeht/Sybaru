@@ -16,53 +16,57 @@ class Info(commands.Cog):
         embed = discord.Embed(
             title="🏮 Panel de Comandos de Sybaru",
             description=(
-                "¡Hola! Soy **Sybaru**. Aquí tienes mis funciones actualizadas.\n"
-                "Usa `/` para activar cualquier comando."
+                "¡Hola! Soy **Sybaru**. Aquí tienes mi catálogo de funciones actualizado.\n"
+                "Usa `/` para comandos de barra o el prefijo configurado para texto."
             ),
             color=self.color_sybaru
         )
 
-        # --- SECCIÓN MÚSICA & PLAYLIST ---
+        # --- MÚSICA & FAVORITOS ---
         embed.add_field(
-            name="🎵 Música & Playlist Personal",
+            name="🎵 Música & Playlist",
             value=(
-                "`play`: Reproduce música o carga tus favoritos (si no escribes nada).\n"
-                "`skip`, `stop`, `loop`, `queue`: Control de reproducción.\n"
-                "`playlist_queue`: Mira tu lista guardada (Modo Libro).\n"
-                "`playlist_remove`: Borra una canción específica.\n"
-                "`playlist_clear`: Vacía toda tu lista personal."
+                "`play`: Reproduce música o carga tus favoritos.\n"
+                "`skip`, `stop`, `loop`, `queue`: Control de la cola.\n"
+                "`playlist_queue`, `playlist_remove`, `playlist_clear`: Gestión de favoritos."
             ),
             inline=False
         )
 
-        # --- SECCIÓN ENTRETENIMIENTO ---
+        # --- INTERACCIÓN & DIVERSIÓN ---
         embed.add_field(
-            name="🏇 Entretenimiento & Anime",
+            name="💘 Interacción & Diversión",
             value=(
-                "`uma`: Descubre qué Umamusume te acompaña hoy.\n"
-                "`gifanime`: Busca GIFs de anime (Giphy + Nekos.best)."
+                "`lovec`: Compatibilidad entre usuarios.\n"
+                "`uma`: Tu Umamusume diaria.\n"
+                "`gifanime`: Buscador de GIFs de alta calidad.\n"
+                "`gif`: Busca cualquier GIF en Giphy."
             ),
             inline=False
         )
 
-        # --- SECCIÓN ROLEPLAY ---
+        # --- ROLEPLAY (COMPLETO) ---
         embed.add_field(
-            name="🎭 Reacciones (Roleplay)",
+            name="🎭 Reacciones & Roleplay",
             value=(
-                "`dance`, `slap`, `hug`, `pat`, `kiss`, `bite`, `kick`, `poke`,\n"
-                "`smile`, `punch`, `shoot`, `yeet`, `cry`, `blush`, `pout`,\n"
-                "`think`, `sleep`, `eat`, `wave`, `laugh`"
+                "**Social:** `si`, `no`, `hola`, `hug`, `kiss`, `pat`, `cuddle`, `handhold`, `wave`\n"
+                "**Acción:** `slap`, `punch`, `kick`, `shoot`, `yeet`, `bite`, `poke`\n"
+                "**Estado:** `cry`, `smile`, `blush`, `stare`, `bored`, `shrug`, `laugh`, `sleep`, `think`\n"
+                "**Otros:**  `eat`"
             ),
             inline=False
         )
 
-        # --- SECCIÓN UTILIDAD ---
+        # --- UTILIDAD & PERSONALIZACIÓN ---
         embed.add_field(
             name="🛠️ Utilidad & Sistema",
             value=(
-                "`userinfo`: Datos de un usuario.\n"
-                "`avatar`: Ver foto de perfil.\n"
-                "`purge`: Limpieza de mensajes."
+                "`prefix`: Cambia o restablece el prefijo del bot.\n"
+                "`userinfo`: Datos detallados de un usuario.\n"
+                "`avatar`: Muestra la foto de perfil en HD.\n"
+                "`infoserver`: Estadísticas del servidor.\n"
+                "`say`: El bot repite tu mensaje.\n"
+                "`purge`: Limpia el historial de mensajes."
             ),
             inline=False
         )
@@ -70,7 +74,7 @@ class Info(commands.Cog):
         # Estética del Embed
         embed.set_thumbnail(url=self.bot.user.display_avatar.url)
         embed.set_footer(
-            text="Sybaru Bot | Versión 2.0 Music & Umas", 
+            text="Sybaru Bot • Desarrollado por Elaehtdev", 
             icon_url=self.bot.user.display_avatar.url
         )
 

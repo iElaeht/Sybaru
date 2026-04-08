@@ -1,7 +1,6 @@
 import discord
 from discord.ext import commands
 import aiohttp
-import random
 
 class Reacciones(commands.Cog):
     def __init__(self, bot):
@@ -10,7 +9,7 @@ class Reacciones(commands.Cog):
         self.contadores = {}
 
     async def _enviar_reaccion(self, ctx, usuario_objetivo, endpoint, texto_accion, emoji, es_solo=False):
-        """Función maestra para Nekos.best con soporte para múltiples acciones."""
+        """Función maestra optimizada. Maneja gramática y errores de conexión."""
         await ctx.defer()
         
         url = f"https://nekos.best/api/v2/{endpoint}"
@@ -31,7 +30,8 @@ class Reacciones(commands.Cog):
                             self.contadores[key] = self.contadores.get(key, 0) + 1
                             veces = self.contadores[key]
                             extra = f" ¡Ya van **{veces}** veces!" if veces > 1 else ""
-                            descripcion = f"{emoji} **{ctx.author.name}** ha {texto_accion} a **{usuario_objetivo.name}**.{extra}"
+                            # Construcción dinámica de la frase
+                            descripcion = f"{emoji} **{ctx.author.name}** ha {texto_accion} **{usuario_objetivo.name}**.{extra}"
 
                         embed = discord.Embed(description=descripcion, color=self.color_embed)
                         embed.set_image(url=url_gif)
@@ -39,78 +39,123 @@ class Reacciones(commands.Cog):
                         
                         await ctx.send(embed=embed)
                     else:
-                        await ctx.send("❌ Sybaru no pudo conectar con la base de datos de anime.")
+                        await ctx.send(f"❌ Error de API: No se encontró contenido para `{endpoint}`.")
         except Exception as e:
-            print(f"Error en Reacciones: {e}")
-            await ctx.send("⚠️ Ocurrió un error al obtener la reacción.")
+            print(f"Error en Reacciones ({endpoint}): {e}")
+            await ctx.send("⚠️ Sybaru no pudo obtener el GIF. Inténtalo de nuevo.")
 
-    # --- COMANDOS ORIGINALES ---
-    @commands.hybrid_command(name="dance", description="Bailar con mucha energía")
-    async def dance(self, ctx, usuario: discord.Member = None):
-        await self._enviar_reaccion(ctx, usuario, "dance", "bailado con", "💃", es_solo="está bailando muy alegre!")
+    # --- AFIRMACIÓN Y NEGACIÓN ---
+    @commands.hybrid_command(name="si", description="Decir que sí con alegría")
+    async def si(self, ctx, usuario: discord.Member = None):
+        await self._enviar_reaccion(ctx, usuario, "happy", "dicho que sí a", "✅", es_solo="dice que sí con mucha alegría!")
 
-    @commands.hybrid_command(name="slap", description="Dar una bofetada")
-    async def slap(self, ctx, usuario: discord.Member = None):
-        await self._enviar_reaccion(ctx, usuario, "slap", "abofeteado", "👋", es_solo="lanza bofetadas al aire.")
+    @commands.hybrid_command(name="no", description="Decir que no o negarse")
+    async def no(self, ctx, usuario: discord.Member = None):
+        await self._enviar_reaccion(ctx, usuario, "pout", "dicho que no a", "🚫", es_solo="se ha negado rotundamente.")
+
+    # --- INTERACCIÓN SOCIAL ---
+    @commands.hybrid_command(name="hola", description="Saludar a alguien")
+    async def hola(self, ctx, usuario: discord.Member = None):
+        await self._enviar_reaccion(ctx, usuario, "wave", "saludado a", "👋", es_solo="saluda a todo el servidor!")
 
     @commands.hybrid_command(name="hug", description="Dar un abrazo")
     async def hug(self, ctx, usuario: discord.Member = None):
-        await self._enviar_reaccion(ctx, usuario, "hug", "abrazado", "🫂", es_solo="se abraza a sí mismo.")
-
-    @commands.hybrid_command(name="pat", description="Acariciar la cabeza")
-    async def pat(self, ctx, usuario: discord.Member = None):
-        await self._enviar_reaccion(ctx, usuario, "pat", "acariciado", "🐱", es_solo="se da mimos solo.")
+        await self._enviar_reaccion(ctx, usuario, "hug", "abrazado a", "🫂", es_solo="se abraza a sí mismo.")
 
     @commands.hybrid_command(name="kiss", description="Dar un beso")
     async def kiss(self, ctx, usuario: discord.Member = None):
-        await self._enviar_reaccion(ctx, usuario, "kiss", "besado", "💋", es_solo="lanza un beso al viento.")
+        await self._enviar_reaccion(ctx, usuario, "kiss", "besado a", "💋", es_solo="lanza un beso al aire.")
 
-    # --- COMANDOS DE ACCIÓN Y ATAQUE ---
+    @commands.hybrid_command(name="pat", description="Acariciar la cabeza")
+    async def pat(self, ctx, usuario: discord.Member = None):
+        await self._enviar_reaccion(ctx, usuario, "pat", "acariciado a", "🐱", es_solo="se da mimos solo.")
+
+    @commands.hybrid_command(name="cuddle", description="Acurrucarse")
+    async def cuddle(self, ctx, usuario: discord.Member = None):
+        await self._enviar_reaccion(ctx, usuario, "cuddle", "acurrucado con", "🧣", es_solo="quiere cariñitos.")
+
+    @commands.hybrid_command(name="handhold", description="Tomar de la mano")
+    async def handhold(self, ctx, usuario: discord.Member = None):
+        await self._enviar_reaccion(ctx, usuario, "handhold", "tomado la mano de", "🤝", es_solo="quiere tomar la mano de alguien.")
+
+    @commands.hybrid_command(name="highfive", description="Chocar esos cinco")
+    async def highfive(self, ctx, usuario: discord.Member = None):
+        await self._enviar_reaccion(ctx, usuario, "highfive", "chocado los cinco con", "🙌", es_solo="busca a alguien para chocar los cinco.")
+
+    # --- ACCIÓN Y COMBATE ---
+    @commands.hybrid_command(name="slap", description="Dar una bofetada")
+    async def slap(self, ctx, usuario: discord.Member = None):
+        await self._enviar_reaccion(ctx, usuario, "slap", "abofeteado a", "👋", es_solo="lanza bofetadas al aire.")
+
     @commands.hybrid_command(name="punch", description="Dar un puñetazo")
     async def punch(self, ctx, usuario: discord.Member = None):
-        await self._enviar_reaccion(ctx, usuario, "punch", "golpeado", "👊", es_solo="está golpeando sacos de boxeo.")
+        await self._enviar_reaccion(ctx, usuario, "punch", "golpeado a", "👊", es_solo="entrena sus golpes.")
 
-    @commands.hybrid_command(name="shoot", description="Disparar (de broma)")
+    @commands.hybrid_command(name="kick", description="Dar una patada")
+    async def kick(self, ctx, usuario: discord.Member = None):
+        await self._enviar_reaccion(ctx, usuario, "kick", "dado una patada a", "🦵", es_solo="da patadas al aire.")
+
+    @commands.hybrid_command(name="shoot", description="Disparar")
     async def shoot(self, ctx, usuario: discord.Member = None):
-        await self._enviar_reaccion(ctx, usuario, "shoot", "disparado a", "🔫", es_solo="está practicando su puntería.")
+        await self._enviar_reaccion(ctx, usuario, "shoot", "disparado a", "🔫", es_solo="está disparando al aire.")
 
-    @commands.hybrid_command(name="yeet", description="Lanzar a alguien lejos")
+    @commands.hybrid_command(name="yeet", description="Lanzar lejos")
     async def yeet(self, ctx, usuario: discord.Member = None):
         await self._enviar_reaccion(ctx, usuario, "yeet", "lanzado por los aires a", "💨", es_solo="se lanzó al vacío!")
 
-    # --- COMANDOS DE ESTADO Y EMOCIÓN ---
-    @commands.hybrid_command(name="cry", description="Ponerse a llorar")
+    @commands.hybrid_command(name="bite", description="Dar un mordisco")
+    async def bite(self, ctx, usuario: discord.Member = None):
+        await self._enviar_reaccion(ctx, usuario, "bite", "mordido a", "🦷", es_solo="se muerde el labio.")
+
+    @commands.hybrid_command(name="poke", description="Picar/Molestar")
+    async def poke(self, ctx, usuario: discord.Member = None):
+        await self._enviar_reaccion(ctx, usuario, "poke", "picado a", "👉", es_solo="se pica a sí mismo.")
+
+    # --- EMOCIONES Y ESTADOS ---
+    @commands.hybrid_command(name="cry", description="Llorar")
     async def cry(self, ctx, usuario: discord.Member = None):
-        await self._enviar_reaccion(ctx, usuario, "cry", "llorado con", "😭", es_solo="está llorando desconsoladamente.")
+        await self._enviar_reaccion(ctx, usuario, "cry", "llorado junto a", "😭", es_solo="está llorando desconsoladamente.")
+
+    @commands.hybrid_command(name="smile", description="Sonreír")
+    async def smile(self, ctx, usuario: discord.Member = None):
+        await self._enviar_reaccion(ctx, usuario, "smile", "sonreído a", "😊", es_solo="tiene una gran sonrisa.")
 
     @commands.hybrid_command(name="blush", description="Sonrojarse")
     async def blush(self, ctx, usuario: discord.Member = None):
         await self._enviar_reaccion(ctx, usuario, "blush", "sonrojado por", "😳", es_solo="está muy sonrojado/a.")
 
-    @commands.hybrid_command(name="pout", description="Hacer un berrinche/puchero")
-    async def pout(self, ctx, usuario: discord.Member = None):
-        await self._enviar_reaccion(ctx, usuario, "pout", "hecho un puchero a", "😤", es_solo="está haciendo un berrinche.")
+    @commands.hybrid_command(name="stare", description="Mirar fijamente")
+    async def stare(self, ctx, usuario: discord.Member = None):
+        await self._enviar_reaccion(ctx, usuario, "stare", "mirado fijamente a", "👀", es_solo="se queda mirando fijamente.")
 
-    @commands.hybrid_command(name="think", description="Quedarse pensando")
+    @commands.hybrid_command(name="bored", description="Estar aburrido")
+    async def bored(self, ctx, usuario: discord.Member = None):
+        await self._enviar_reaccion(ctx, usuario, "bored", "ignorado por aburrimiento a", "😴", es_solo="está muy aburrido.")
+
+    @commands.hybrid_command(name="shrug", description="Encogerse de hombros")
+    async def shrug(self, ctx, usuario: discord.Member = None):
+        await self._enviar_reaccion(ctx, usuario, "shrug", "encogido los hombros ante", "🤷", es_solo="no sabe qué decir.")
+
+    @commands.hybrid_command(name="laugh", description="Reírse")
+    async def laugh(self, ctx, usuario: discord.Member = None):
+        await self._enviar_reaccion(ctx, usuario, "laugh", "reído con", "🤣", es_solo="no puede parar de reír!")
+
+    @commands.hybrid_command(name="think", description="Pensar")
     async def think(self, ctx, usuario: discord.Member = None):
-        await self._enviar_reaccion(ctx, usuario, "think", "pensado profundamente en", "🤔", es_solo="está reflexionando sobre la vida.")
+        await self._enviar_reaccion(ctx, usuario, "think", "pensado en", "🤔", es_solo="está reflexionando.")
 
-    # --- COMANDOS DE VIDA DIARIA ---
-    @commands.hybrid_command(name="sleep", description="Irse a dormir")
-    async def sleep(self, ctx, usuario: discord.Member = None):
-        await self._enviar_reaccion(ctx, usuario, "sleep", "dormido junto a", "😴", es_solo="se ha quedado profundamente dormido/a.")
+    # --- DIVERSIÓN Y OTROS ---
+    @commands.hybrid_command(name="dance", description="Bailar")
+    async def dance(self, ctx, usuario: discord.Member = None):
+        await self._enviar_reaccion(ctx, usuario, "dance", "bailado con", "💃", es_solo="baila con mucha alegría!")
 
-    @commands.hybrid_command(name="eat", description="Comer algo rico")
+    @commands.hybrid_command(name="eat", description="Comer algo")
     async def eat(self, ctx, usuario: discord.Member = None):
         await self._enviar_reaccion(ctx, usuario, "feed", "alimentado a", "🍱", es_solo="está comiendo algo delicioso.")
 
-    @commands.hybrid_command(name="wave", description="Saludar con la mano")
-    async def wave(self, ctx, usuario: discord.Member = None):
-        await self._enviar_reaccion(ctx, usuario, "wave", "saludado a", "👋", es_solo="está saludando a todos!")
-
-    @commands.hybrid_command(name="laugh", description="Reírse a carcajadas")
-    async def laugh(self, ctx, usuario: discord.Member = None):
-        await self._enviar_reaccion(ctx, usuario, "laugh", "reído de", "🤣", es_solo="no puede parar de reír!")
+    @commands.hybrid_command(name="sleep", description="Dormir")
+    async def sleep(self, ctx, usuario: discord.Member = None):
+        await self._enviar_reaccion(ctx, usuario, "sleep", "dormido junto a", "😴", es_solo="se ha quedado dormido.")
 
 async def setup(bot):
     await bot.add_cog(Reacciones(bot))
