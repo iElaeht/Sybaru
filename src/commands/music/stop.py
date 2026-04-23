@@ -12,29 +12,44 @@ class Stop(commands.Cog):
 
     @app_commands.command(
         name="stop", 
-        description="Detiene la música, vacía la cola y saca al bot del canal"
+        description="Detiene la música, vacía la cola y desconecta a Sybaru del canal"
     )
     async def stop(self, interaction: discord.Interaction):
-        """Detiene todo y desconecta al bot."""
+        """Detiene la reproducción actual y saca al bot del canal de voz."""
         
-        # 1. Verificar si el bot está en voz
-        if not interaction.guild.voice_client:
+        voice_client = interaction.guild.voice_client
+        
+        if not voice_client:
             return await interaction.response.send_message(
-                "❌ No estoy en ningún canal de voz.", 
+                "❌ **Sybaru** no está en ningún canal de voz ahora mismo.", 
                 ephemeral=True
             )
 
-        # 2. Limpieza de datos en el Manager (vacía cola y quita loop)
-        self.manager.stop(interaction)
+        try:
+            # 1. Cancelar cualquier temporizador de desconexión activa (si existe)
+            if hasattr(self.manager, 'disconnect_tasks'):
+                task = self.manager.disconnect_tasks.get(interaction.guild_id)
+                if task:
+                    task.cancel()
 
-        # 3. DESCONEXIÓN: Esto hace que el bot se salga del canal
-        await interaction.guild.voice_client.disconnect()
+            # 2. Detener audio y limpiar manager
+            if voice_client.is_playing() or voice_client.is_paused():
+                voice_client.stop()
+            
+            self.manager.stop(interaction)
+        except Exception as e:
+            print(f"Error al limpiar música en stop: {e}")
 
-        # 4. Respuesta de despedida personalizada
+        # 3. Desconexión física
+        await voice_client.disconnect()
+
+        # 4. Respuesta visual
         embed = discord.Embed(
-            description="⏹️ **Música detenida, hasta pronto.**",
-            color=discord.Color.red()
+            title="🏮 Sesión Finalizada",
+            description="⏹️ **La música se ha detenido y me he retirado del canal.**\n¡Espero verte pronto!",
+            color=discord.Color.from_rgb(255, 182, 193)
         )
+        embed.set_footer(text="Sybaru Music System")
         
         await interaction.response.send_message(embed=embed)
 
