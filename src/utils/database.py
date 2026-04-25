@@ -228,3 +228,5 @@ def delete_sensitivity(user_id, title):
                 conn.commit()
         return True
     except Exception: return False
+
+remove_from_playlist = delete_from_playlist
