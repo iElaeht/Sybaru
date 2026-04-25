@@ -6,7 +6,7 @@ from psycopg2 import extras
 # --- CONFIGURACIÓN DE RUTAS Y CONEXIÓN ---
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 DB_PATH = os.path.join(BASE_DIR, "sybaru_data.db")
-DATABASE_URL = os.getenv("DATABASE_URL") # Railway la pone sola
+DATABASE_URL = os.getenv("DATABASE_URL")
 
 def get_connection():
     """Retorna una conexión a PostgreSQL (Railway) o SQLite (Local)."""
@@ -20,7 +20,7 @@ def get_placeholder():
     return "%s" if DATABASE_URL else "?"
 
 def init_db():
-    """Inicializa la base de datos con tablas compatibles."""
+    """Inicializa la base de datos con todas las tablas necesarias."""
     conn = get_connection()
     cursor = conn.cursor()
     
@@ -94,6 +94,16 @@ def get_guild_prefix(guild_id, default):
                 return result[0] if result else default
     except Exception: return default
 
+def reset_guild_prefix(guild_id):
+    p = get_placeholder()
+    try:
+        with get_connection() as conn:
+            with conn.cursor() as cursor:
+                cursor.execute(f"DELETE FROM guild_prefixes WHERE guild_id = {p}", (str(guild_id),))
+                conn.commit()
+        return True
+    except Exception: return False
+
 # --- MÓDULO DE PLAYLISTS ---
 def save_to_playlist(user_id, title, url):
     p = get_placeholder()
@@ -114,6 +124,26 @@ def get_playlist(user_id):
                 return cursor.fetchall()
     except Exception: return []
 
+def delete_from_playlist(user_id, song_url):
+    p = get_placeholder()
+    try:
+        with get_connection() as conn:
+            with conn.cursor() as cursor:
+                cursor.execute(f"DELETE FROM user_playlists WHERE user_id = {p} AND song_url = {p}", (str(user_id), song_url))
+                conn.commit()
+        return True
+    except Exception: return False
+
+def clear_full_playlist(user_id):
+    p = get_placeholder()
+    try:
+        with get_connection() as conn:
+            with conn.cursor() as cursor:
+                cursor.execute(f"DELETE FROM user_playlists WHERE user_id = {p}", (str(user_id),))
+                conn.commit()
+        return True
+    except Exception: return False
+
 # --- MÓDULO DE CROSSHAIRS ---
 def add_crosshair(user_id, title, code):
     p = get_placeholder()
@@ -125,6 +155,15 @@ def add_crosshair(user_id, title, code):
         return True
     except Exception: return False
 
+def get_crosshairs(user_id):
+    p = get_placeholder()
+    try:
+        with get_connection() as conn:
+            with conn.cursor() as cursor:
+                cursor.execute(f"SELECT title, code FROM user_crosshairs WHERE user_id = {p}", (str(user_id),))
+                return cursor.fetchall()
+    except Exception: return []
+
 def update_crosshair(user_id, title, new_code):
     p = get_placeholder()
     try:
@@ -132,7 +171,17 @@ def update_crosshair(user_id, title, new_code):
             with conn.cursor() as cursor:
                 cursor.execute(f"UPDATE user_crosshairs SET code = {p} WHERE user_id = {p} AND title = {p}", (new_code, str(user_id), title))
                 conn.commit()
-                return True
+        return True
+    except Exception: return False
+
+def delete_crosshair(user_id, title):
+    p = get_placeholder()
+    try:
+        with get_connection() as conn:
+            with conn.cursor() as cursor:
+                cursor.execute(f"DELETE FROM user_crosshairs WHERE user_id = {p} AND title = {p}", (str(user_id), title))
+                conn.commit()
+        return True
     except Exception: return False
 
 # --- MÓDULO DE SENSIBILIDADES ---
@@ -155,3 +204,27 @@ def get_sensitivities(user_id):
                 cursor.execute(f"SELECT title, dpi, sens_in_game, scoped_mult, ads_mult FROM user_sensitivities WHERE user_id = {p}", (str(user_id),))
                 return cursor.fetchall()
     except Exception: return []
+
+def update_sensitivity(user_id, title, dpi, sens, scoped, ads):
+    p = get_placeholder()
+    try:
+        with get_connection() as conn:
+            with conn.cursor() as cursor:
+                cursor.execute(f"""
+                    UPDATE user_sensitivities 
+                    SET dpi = {p}, sens_in_game = {p}, scoped_mult = {p}, ads_mult = {p} 
+                    WHERE user_id = {p} AND title = {p}
+                """, (dpi, sens, scoped, ads, str(user_id), title))
+                conn.commit()
+        return True
+    except Exception: return False
+
+def delete_sensitivity(user_id, title):
+    p = get_placeholder()
+    try:
+        with get_connection() as conn:
+            with conn.cursor() as cursor:
+                cursor.execute(f"DELETE FROM user_sensitivities WHERE user_id = {p} AND title = {p}", (str(user_id), title))
+                conn.commit()
+        return True
+    except Exception: return False
