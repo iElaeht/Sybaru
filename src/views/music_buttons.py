@@ -1,12 +1,12 @@
 import discord
-from discord.ui import View, Button
-from src.utils.database import save_to_playlist
 import math
+from discord.ext import commands
+from src.utils.database import save_to_playlist
 
-# --- NUEVA CLASE PARA LA PAGINACIÓN DE LA COLA ---
+# --- PAGINACIÓN DE LA COLA (Estilo Libro) ---
 class QueuePagination(discord.ui.View):
     def __init__(self, queue_list, current_page=0):
-        super().__init__(timeout=60) # El libro deja de funcionar tras 60s de inactividad
+        super().__init__(timeout=60)
         self.queue_list = list(queue_list)
         self.current_page = current_page
         self.items_per_page = 10
@@ -18,12 +18,11 @@ class QueuePagination(discord.ui.View):
         page_items = self.queue_list[start:end]
 
         embed = discord.Embed(
-            title="📖 Registro de la Cola",
+            title="📖 Registro de la Cola - Sybaru",
             description=f"Catálogo de reproducción actual • **{len(self.queue_list)}** canciones",
             color=discord.Color.from_rgb(43, 45, 49)
         )
         
-        # Lista estilizada (estilo libro profesional)
         lista_texto = ""
         for i, track in enumerate(page_items, start=start + 1):
             titulo = (track['title'][:45] + '...') if len(track['title']) > 45 else track['title']
@@ -50,60 +49,68 @@ class QueuePagination(discord.ui.View):
         else:
             await interaction.response.send_message("✨ Estás en la última página.", ephemeral=True, delete_after=5)
 
-# --- TU VISTA PRINCIPAL ACTUALIZADA ---
+# --- PANEL DE CONTROL PRINCIPAL DE SYBARU ---
 class MusicControlView(discord.ui.View):
     def __init__(self, bot):
-        super().__init__(timeout=None)
+        super().__init__(timeout=None) # Persistente
         self.bot = bot
         self.manager = bot.music_manager
+
+    # Validación de seguridad: Bot y Usuario en el mismo canal
+    async def interaction_check(self, interaction: discord.Interaction) -> bool:
+        vc = interaction.guild.voice_client
+        if not vc:
+            await interaction.response.send_message("❌ **Sybaru** no está conectado.", ephemeral=True, delete_after=10)
+            return False
+        if not interaction.user.voice or interaction.user.voice.channel != vc.channel:
+            await interaction.response.send_message("⚠️ Debes estar en el mismo canal de voz.", ephemeral=True, delete_after=10)
+            return False
+        return True
 
     # --- FILA 1: CONTROLES ---
     @discord.ui.button(emoji="⏯️", style=discord.ButtonStyle.blurple, row=0)
     async def play_pause(self, interaction: discord.Interaction, button: discord.ui.Button):
-        if interaction.guild.voice_client and interaction.guild.voice_client.is_paused():
+        vc = interaction.guild.voice_client
+        if vc.is_paused():
             self.manager.resume(interaction)
-            await interaction.response.send_message("▶️ **Reanudado**", ephemeral=True, delete_after=30)
+            await interaction.response.send_message("▶️ **Música reanudada**", ephemeral=True, delete_after=15)
         else:
             self.manager.pause(interaction)
-            await interaction.response.send_message("⏸️ **Pausado**", ephemeral=True, delete_after=30)
+            await interaction.response.send_message("⏸️ **Música pausada**", ephemeral=True, delete_after=15)
 
     @discord.ui.button(emoji="⏭️", style=discord.ButtonStyle.gray, row=0)
     async def skip(self, interaction: discord.Interaction, button: discord.ui.Button):
         self.manager.skip(interaction)
-        await interaction.response.send_message("⏭️ **Saltando canción...**", ephemeral=True, delete_after=30)
+        await interaction.response.send_message("⏭️ **Saltando canción...**", ephemeral=True, delete_after=15)
 
     @discord.ui.button(emoji="🔁", style=discord.ButtonStyle.gray, row=0)
     async def loop(self, interaction: discord.Interaction, button: discord.ui.Button):
         nuevo_estado = self.manager.toggle_loop(interaction.guild_id)
         button.style = discord.ButtonStyle.green if nuevo_estado else discord.ButtonStyle.gray
+        # Editamos el mensaje original para que el botón cambie de color visualmente
         await interaction.response.edit_message(view=self)
-        await interaction.followup.send(f"🔁 Bucle: **{'ACTIVADO' if nuevo_estado else 'DESACTIVADO'}**", ephemeral=True, delete_after=30)
 
     @discord.ui.button(emoji="⏹️", style=discord.ButtonStyle.red, row=0)
     async def stop(self, interaction: discord.Interaction, button: discord.ui.Button):
         self.manager.stop(interaction)
-        await interaction.response.send_message("⏹️ **Música detenida**", ephemeral=True, delete_after=30)
+        await interaction.response.send_message("⏹️ **Sesión finalizada por el usuario.**", ephemeral=True, delete_after=15)
 
     # --- FILA 2: UTILIDADES ---
     @discord.ui.button(label="Favorito", emoji="⭐", style=discord.ButtonStyle.green, row=1)
     async def add_fav(self, interaction: discord.Interaction, button: discord.ui.Button):
         track = self.manager.current_track.get(interaction.guild_id)
         if not track:
-            return await interaction.response.send_message("❌ No hay música.", ephemeral=True, delete_after=30)
+            return await interaction.response.send_message("❌ No hay nada sonando.", ephemeral=True, delete_after=10)
+        
         exito = save_to_playlist(interaction.user.id, track['title'], track['webpage_url'])
-        res = f"🌟 **¡Guardada!**" if exito else "⚠️ Ya estaba en favoritos."
-        await interaction.response.send_message(res, ephemeral=True, delete_after=30)
+        msg = "🌟 **¡Guardada en tus favoritos!**" if exito else "⚠️ Esta canción ya estaba en tu lista."
+        await interaction.response.send_message(msg, ephemeral=True, delete_after=15)
 
     @discord.ui.button(label="Ver Cola", emoji="📖", style=discord.ButtonStyle.gray, row=1)
     async def show_queue(self, interaction: discord.Interaction, button: discord.ui.Button):
         queue = self.manager.get_queue(interaction.guild_id)
+        if not queue:
+            return await interaction.response.send_message("📭 La cola está vacía.", ephemeral=True, delete_after=10)
         
-        if not queue or len(queue) == 0:
-            return await interaction.response.send_message("📭 La cola está vacía.", ephemeral=True, delete_after=30)
-        
-        # Instanciamos la paginación con la lista completa
         pagination = QueuePagination(queue)
-        embed = pagination.create_embed()
-        
-        # Enviamos el mensaje con el Embed y la nueva View de botones de navegación
-        await interaction.response.send_message(embed=embed, view=pagination, ephemeral=False)
+        await interaction.response.send_message(embed=pagination.create_embed(), view=pagination, ephemeral=True)

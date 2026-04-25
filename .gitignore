@@ -1,5 +1,25 @@
+# --- Python & Entorno ---
 venv/
-.env
-__pycache__/
+.venv/
+env/
+# Archivos compilados (los .pyc que tienes por todos lados)
+**/__pycache__/
 *.pyc
-sybaru_data.db
+
+# --- Configuración & Secretos (CRÍTICO) ---
+.env
+config.json
+cookies.txt
+*.log
+
+# --- Cache del Bot ---
+# Ignoramos todo dentro de cache pero mantenemos la carpeta
+src/cache/*
+!src/cache/.gitkeep
+
+# --- Herramientas de Sistema ---
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.db

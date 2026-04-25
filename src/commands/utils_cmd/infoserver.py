@@ -4,75 +4,83 @@ from discord import app_commands
 from datetime import datetime
 
 class InfoServer(commands.Cog):
+    """
+    Cog informativo que despliega estadísticas técnicas del servidor.
+    Diseñado para ofrecer una visión ejecutiva y limpia.
+    """
     def __init__(self, bot):
         self.bot = bot
 
     @app_commands.command(
         name="infoserver",
-        description="Muestra información detallada y profesional del servidor"
+        description="Muestra información detallada y profesional del servidor."
     )
     async def infoserver(self, interaction: discord.Interaction):
+        """Genera un reporte técnico del servidor actual."""
         guild = interaction.guild
         
-        # Formatear la fecha de creación
+        # Fecha de creación con formato legible
         created_at = guild.created_at.strftime("%d/%m/%Y")
         
-        # Contadores de miembros
+        # Cálculo de comunidad (Requiere Gateway Intents activos)
         total_members = guild.member_count
-        # Filtramos bots si quieres precisión (opcional)
-        bots = sum(1 for member in guild.members if member.bot)
+        bots = sum(1 for member in guild.members if member.bot) if guild.members else 0
         humans = total_members - bots
 
-        # Canales
+        # Conteo de canales por tipo
         text_channels = len(guild.text_channels)
         voice_channels = len(guild.voice_channels)
         categories = len(guild.categories)
+        roles_count = len(guild.roles)
 
-        # Diseño del Embed
+        # Configuración del diseño del Embed
         embed = discord.Embed(
-            title=f"📊 Información de {guild.name}",
-            description=f"Aquí tienes los detalles técnicos del servidor **{guild.name}**.",
-            color=discord.Color.from_rgb(43, 45, 49), # Color oscuro profesional
+            title=f"📊 Estadísticas: {guild.name}",
+            description=f"Resumen técnico del servidor solicitado por {interaction.user.mention}.",
+            color=discord.Color.from_rgb(43, 45, 49), # Gris oscuro premium
             timestamp=datetime.now()
         )
 
-        # Miniatura del servidor (icono)
+        # Icono del servidor (Thumbnail)
         if guild.icon:
             embed.set_thumbnail(url=guild.icon.url)
 
-        # Campos de información general
-        embed.add_field(name="👑 Dueño", value=f"{guild.owner.mention}", inline=True)
-        embed.add_field(name="🆔 ID del Servidor", value=f"`{guild.id}`", inline=True)
-        embed.add_field(name="📅 Creación", value=f"{created_at}", inline=True)
+        # --- SECCIÓN: IDENTIDAD ---
+        identidad = (
+            f"**ID:** `{guild.id}`\n"
+            f"**Dueño:** {guild.owner.mention}\n"
+            f"**Creado:** {created_at}"
+        )
+        embed.add_field(name="📌 Identidad", value=identidad, inline=True)
 
-        # Campos de comunidad
-        embed.add_field(
-            name="👥 Usuarios", 
-            value=f"Total: **{total_members}**\n👤 Humanos: {humans}\n🤖 Bots: {bots}", 
-            inline=True
+        # --- SECCIÓN: COMUNIDAD ---
+        comunidad = (
+            f"**Total:** `{total_members}`\n"
+            f"👤 **Humanos:** `{humans}`\n"
+            f"🤖 **Bots:** `{bots}`"
         )
-        embed.add_field(
-            name="💬 Canales", 
-            value=f"📁 Categorías: {categories}\n📝 Texto: {text_channels}\n🔊 Voz: {voice_channels}", 
-            inline=True
-        )
-        embed.add_field(
-            name="✨ Mejoras (Boosts)", 
-            value=f"Nivel: **{guild.premium_tier}**\nMejoras: **{guild.premium_subscription_count}**", 
-            inline=True
-        )
+        embed.add_field(name="👥 Comunidad", value=comunidad, inline=True)
 
-        # Imagen del banner si tiene
+        # --- SECCIÓN: RECURSOS ---
+        recursos = (
+            f"**Canales:** `{text_channels + voice_channels}`\n"
+            f"**Roles:** `{roles_count}`\n"
+            f"**Boosts:** `{guild.premium_subscription_count}` (Lvl {guild.premium_tier})"
+        )
+        embed.add_field(name="📂 Recursos", value=recursos, inline=True)
+
+        # Imagen del banner (si el servidor tiene nivel de boost suficiente)
         if guild.banner:
             embed.set_image(url=guild.banner.url)
 
+        # Footer minimalista
         embed.set_footer(
-            text=f"Solicitado por {interaction.user.display_name}", 
-            icon_url=interaction.user.display_avatar.url
+            text=f"Sybaru System • {guild.name}", 
+            icon_url=self.bot.user.display_avatar.url
         )
 
-        # Enviamos la respuesta (puedes poner ephemeral=True si prefieres que sea privado)
         await interaction.response.send_message(embed=embed)
 
 async def setup(bot):
+    """Carga del módulo InfoServer."""
     await bot.add_cog(InfoServer(bot))

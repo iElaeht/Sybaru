@@ -3,13 +3,22 @@ from discord.ext import commands
 import aiohttp
 
 class Reacciones(commands.Cog):
+    """
+    Sistema de interacciones sociales y roleplay animado.
+    Utiliza Nekos.best para obtener GIFs de alta calidad.
+    """
     def __init__(self, bot):
         self.bot = bot
+        # Color rosa pastel característico para las interacciones
         self.color_embed = discord.Color.from_rgb(255, 182, 193)
+        # Diccionario para almacenar cuántas veces se han interactuado los usuarios
         self.contadores = {}
 
     async def _enviar_reaccion(self, ctx, usuario_objetivo, endpoint, texto_accion, emoji, es_solo=False):
-        """Función maestra optimizada. Maneja gramática y errores de conexión."""
+        """
+        Función maestra que procesa la petición a la API, gestiona el contador
+        de interacciones y construye el Embed final.
+        """
         await ctx.defer()
         
         url = f"https://nekos.best/api/v2/{endpoint}"
@@ -23,16 +32,18 @@ class Reacciones(commands.Cog):
                         url_gif = resultado['url']
                         nombre_anime = resultado.get('anime_name', 'Original')
 
+                        # Lógica de descripción: ¿Es una acción hacia otro o hacia uno mismo?
                         if usuario_objetivo is None or usuario_objetivo == ctx.author:
                             descripcion = f"{emoji} **{ctx.author.name}** {es_solo}"
                         else:
+                            # Sistema de contadores persistente por sesión
                             key = (ctx.author.id, usuario_objetivo.id, endpoint)
                             self.contadores[key] = self.contadores.get(key, 0) + 1
                             veces = self.contadores[key]
                             extra = f" ¡Ya van **{veces}** veces!" if veces > 1 else ""
-                            # Construcción dinámica de la frase
                             descripcion = f"{emoji} **{ctx.author.name}** ha {texto_accion} **{usuario_objetivo.name}**.{extra}"
 
+                        # Construcción estética del Embed
                         embed = discord.Embed(description=descripcion, color=self.color_embed)
                         embed.set_image(url=url_gif)
                         embed.set_footer(text=f"🎬 Anime: {nombre_anime} | Solicitado por {ctx.author.name}")
@@ -41,10 +52,12 @@ class Reacciones(commands.Cog):
                     else:
                         await ctx.send(f"❌ Error de API: No se encontró contenido para `{endpoint}`.")
         except Exception as e:
-            print(f"Error en Reacciones ({endpoint}): {e}")
+            print(f"❌ Sybaru Log Error (Reacciones/{endpoint}): {e}")
             await ctx.send("⚠️ Sybaru no pudo obtener el GIF. Inténtalo de nuevo.")
 
-    # --- AFIRMACIÓN Y NEGACIÓN ---
+    # ================================
+    # CATEGORÍA: AFIRMACIÓN Y NEGACIÓN
+    # ================================
     @commands.hybrid_command(name="si", description="Decir que sí con alegría")
     async def si(self, ctx, usuario: discord.Member = None):
         await self._enviar_reaccion(ctx, usuario, "happy", "dicho que sí a", "✅", es_solo="dice que sí con mucha alegría!")
@@ -53,7 +66,9 @@ class Reacciones(commands.Cog):
     async def no(self, ctx, usuario: discord.Member = None):
         await self._enviar_reaccion(ctx, usuario, "pout", "dicho que no a", "🚫", es_solo="se ha negado rotundamente.")
 
-    # --- INTERACCIÓN SOCIAL ---
+    # ================================
+    # CATEGORÍA: INTERACCIÓN SOCIAL
+    # ================================
     @commands.hybrid_command(name="hola", description="Saludar a alguien")
     async def hola(self, ctx, usuario: discord.Member = None):
         await self._enviar_reaccion(ctx, usuario, "wave", "saludado a", "👋", es_solo="saluda a todo el servidor!")
@@ -82,7 +97,13 @@ class Reacciones(commands.Cog):
     async def highfive(self, ctx, usuario: discord.Member = None):
         await self._enviar_reaccion(ctx, usuario, "highfive", "chocado los cinco con", "🙌", es_solo="busca a alguien para chocar los cinco.")
 
-    # --- ACCIÓN Y COMBATE ---
+    @commands.hybrid_command(name="tickle", description="Hacer cosquillas")
+    async def tickle(self, ctx, usuario: discord.Member = None):
+        await self._enviar_reaccion(ctx, usuario, "tickle", "hecho cosquillas a", "🤣", es_solo="se ríe solo de imaginarlo.")
+
+    # ================================
+    # CATEGORÍA: ACCIÓN Y COMBATE
+    # ================================
     @commands.hybrid_command(name="slap", description="Dar una bofetada")
     async def slap(self, ctx, usuario: discord.Member = None):
         await self._enviar_reaccion(ctx, usuario, "slap", "abofeteado a", "👋", es_solo="lanza bofetadas al aire.")
@@ -111,7 +132,9 @@ class Reacciones(commands.Cog):
     async def poke(self, ctx, usuario: discord.Member = None):
         await self._enviar_reaccion(ctx, usuario, "poke", "picado a", "👉", es_solo="se pica a sí mismo.")
 
-    # --- EMOCIONES Y ESTADOS ---
+    # ================================
+    # CATEGORÍA: EMOCIONES Y ESTADOS
+    # ================================
     @commands.hybrid_command(name="cry", description="Llorar")
     async def cry(self, ctx, usuario: discord.Member = None):
         await self._enviar_reaccion(ctx, usuario, "cry", "llorado junto a", "😭", es_solo="está llorando desconsoladamente.")
@@ -144,7 +167,13 @@ class Reacciones(commands.Cog):
     async def think(self, ctx, usuario: discord.Member = None):
         await self._enviar_reaccion(ctx, usuario, "think", "pensado en", "🤔", es_solo="está reflexionando.")
 
-    # --- DIVERSIÓN Y OTROS ---
+    @commands.hybrid_command(name="lurk", description="Observar desde las sombras")
+    async def lurk(self, ctx, usuario: discord.Member = None):
+        await self._enviar_reaccion(ctx, usuario, "lurk", "acechado a", "🕵️", es_solo="está observando desde las sombras...")
+
+    # ================================
+    # CATEGORÍA: DIVERSIÓN Y RUTINA
+    # ================================
     @commands.hybrid_command(name="dance", description="Bailar")
     async def dance(self, ctx, usuario: discord.Member = None):
         await self._enviar_reaccion(ctx, usuario, "dance", "bailado con", "💃", es_solo="baila con mucha alegría!")
@@ -157,5 +186,14 @@ class Reacciones(commands.Cog):
     async def sleep(self, ctx, usuario: discord.Member = None):
         await self._enviar_reaccion(ctx, usuario, "sleep", "dormido junto a", "😴", es_solo="se ha quedado dormido.")
 
+    @commands.hybrid_command(name="nom", description="Comer/Morder cariñosamente")
+    async def nom(self, ctx, usuario: discord.Member = None):
+        await self._enviar_reaccion(ctx, usuario, "nom", "dado un mordisquito a", "😋", es_solo="está comiendo un snack.")
+
+    @commands.hybrid_command(name="headbang", description="Escuchar música a tope")
+    async def headbang(self, ctx, usuario: discord.Member = None):
+        await self._enviar_reaccion(ctx, usuario, "headbang", "rockeado con", "🤘", es_solo="está escuchando metal a tope!")
+
 async def setup(bot):
+    """Carga del módulo de Reacciones."""
     await bot.add_cog(Reacciones(bot))

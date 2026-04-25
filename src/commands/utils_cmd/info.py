@@ -2,83 +2,88 @@ import discord
 from discord.ext import commands
 
 class Info(commands.Cog):
+    """
+    Cog informativo sobre las capacidades de Sybaru.
+    Diseño visual optimizado para facilitar la navegación del usuario.
+    """
     def __init__(self, bot):
         self.bot = bot
+        # Un tono rosado pastel característico de Sybaru
         self.color_sybaru = discord.Color.from_rgb(255, 182, 193)
 
     @commands.hybrid_command(
         name="comandos", 
-        description="Muestra la lista completa de comandos de Sybaru"
+        description="Explora el catálogo completo de funciones de Sybaru."
     )
     async def comandos(self, ctx):
-        """Panel visual de todos los comandos de Sybaru."""
+        """Muestra un panel organizado con todos los comandos disponibles."""
         
         embed = discord.Embed(
-            title="🏮 Panel de Comandos de Sybaru",
+            title="🏮 Centro de Ayuda de Sybaru",
             description=(
-                "¡Hola! Soy **Sybaru**. Aquí tienes mi catálogo de funciones actualizado.\n"
-                "Usa `/` para comandos de barra o el prefijo configurado para texto."
+                "¡Hola! Soy tu asistente multimedia y de entretenimiento.\n"
+                "Usa `/` o el prefijo del servidor para interactuar conmigo.\n"
+                "━━━━━━━━━━━━━━━━━━━━━━━━━━"
             ),
             color=self.color_sybaru
         )
 
-        # --- MÚSICA & FAVORITOS ---
+        # --- MÚSICA & PLAYLIST ---
+        # Usamos bloques de código (`) para que los comandos resalten sobre el texto
         embed.add_field(
-            name="🎵 Música & Playlist",
+            name="🎵 Música & Entretenimiento",
             value=(
-                "`play`: Reproduce música o carga tus favoritos.\n"
-                "`skip`, `stop`, `loop`, `queue`: Control de la cola.\n"
-                "`playlist_queue`, `playlist_remove`, `playlist_clear`: Gestión de favoritos."
+                "┕ `play`, `skip`, `stop`, `loop`, `queue`\n"
+                "┕ `playlist_queue`, `playlist_remove`, `playlist_clear`"
             ),
             inline=False
         )
 
-        # --- INTERACCIÓN & DIVERSIÓN ---
+        # --- INTERACCIÓN ---
         embed.add_field(
-            name="💘 Interacción & Diversión",
+            name="💘 Interacción & Anime",
             value=(
-                "`lovec`: Compatibilidad entre usuarios.\n"
-                "`uma`: Tu Umamusume diaria.\n"
-                "`gifanime`: Buscador de GIFs de alta calidad.\n"
-                "`gif`: Busca cualquier GIF en Giphy."
+                "┕ `lovec`, `uma`, `gifanime`, `gif`, `animefrase`"
             ),
             inline=False
         )
 
-        # --- ROLEPLAY (COMPLETO) ---
+        # --- ROLEPLAY ---
+        # Dividido por categorías para no saturar una sola línea
+        roleplay_content = (
+            "⭐ **Social:** `hug`, `kiss`, `pat`, `cuddle`, `wave`\n"
+            "💢 **Acción:** `slap`, `punch`, `kick`, `bite`, `yeet`\n"
+            "☁️ **Estado:** `cry`, `smile`, `blush`, `laugh`, `sleep`"
+        )
         embed.add_field(
             name="🎭 Reacciones & Roleplay",
-            value=(
-                "**Social:** `si`, `no`, `hola`, `hug`, `kiss`, `pat`, `cuddle`, `handhold`, `wave`\n"
-                "**Acción:** `slap`, `punch`, `kick`, `shoot`, `yeet`, `bite`, `poke`\n"
-                "**Estado:** `cry`, `smile`, `blush`, `stare`, `bored`, `shrug`, `laugh`, `sleep`, `think`\n"
-                "**Otros:**  `eat`"
-            ),
+            value=roleplay_content,
             inline=False
         )
 
-        # --- UTILIDAD & PERSONALIZACIÓN ---
+        # --- UTILIDAD ---
         embed.add_field(
-            name="🛠️ Utilidad & Sistema",
+            name="🛠️ Sistema & Utilidad",
             value=(
-                "`prefix`: Cambia o restablece el prefijo del bot.\n"
-                "`userinfo`: Datos detallados de un usuario.\n"
-                "`avatar`: Muestra la foto de perfil en HD.\n"
-                "`infoserver`: Estadísticas del servidor.\n"
-                "`say`: El bot repite tu mensaje.\n"
-                "`purge`: Limpia el historial de mensajes."
+                "┕ `setprefix`, `avatar`, `userinfo`, `infoserver`\n"
+                "┕ `say`, `purge`, `comandos`"
             ),
             inline=False
         )
 
-        # Estética del Embed
+        # Estética final: Miniatura y Footer
         embed.set_thumbnail(url=self.bot.user.display_avatar.url)
+        
+        # Un separador visual antes del footer
+        embed.add_field(name="​", value="━━━━━━━━━━━━━━━━━━━━━━━━━━", inline=False)
+        
         embed.set_footer(
-            text="Sybaru Bot • Desarrollado por Elaehtdev", 
-            icon_url=self.bot.user.display_avatar.url
+            text=f"Solicitado por {ctx.author.display_name} | v1.2", 
+            icon_url=ctx.author.display_avatar.url
         )
 
         await ctx.send(embed=embed)
 
 async def setup(bot):
+    """Carga del módulo de información."""
     await bot.add_cog(Info(bot))
