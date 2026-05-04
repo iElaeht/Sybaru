@@ -2,10 +2,8 @@ import discord
 import os
 import asyncio
 import sys
-import sqlite3
 from discord.ext import commands
 from dotenv import load_dotenv
-
 from src.utils.database import init_db, get_guild_prefix
 
 if sys.platform == 'win32':
@@ -36,18 +34,14 @@ class SybaruBot(commands.Bot):
         )
 
     async def setup_hook(self):
-        print("-" * 40)
-        print("📁 Inicializando Sistemas...")
+        print("SISTEMA: Inicializando procesos...")
 
         try:
             init_db()
-            print("🗄️  Base de datos sincronizada correctamente.")
+            print("DB: Sincronizacion completada.")
         except Exception as e:
-            print(f"⚠️  Error crítico al iniciar la DB: {e}")
+            print(f"DB_ERROR: Fallo critico en inicio de base de datos: {e}")
 
-        print("-" * 40)
-        print("⚙️  Cargando módulos de comandos...")
-        
         folders_to_load = [
             os.path.join('src', 'commands'),
             os.path.join('src', 'utils_cmd') 
@@ -55,7 +49,7 @@ class SybaruBot(commands.Bot):
         
         for base_path in folders_to_load:
             if not os.path.exists(base_path):
-                print(f"⚠️  Aviso: No se encontró la carpeta {base_path}")
+                print(f"SISTEMA_AVISO: Directorio no encontrado: {base_path}")
                 continue
                 
             for root, _, files in os.walk(base_path):
@@ -67,26 +61,20 @@ class SybaruBot(commands.Bot):
                         
                         try:
                             await self.load_extension(module_path)
-                            icon = "🎵" if "music" in module_path else "🛠️" if "utils" in module_path else "✅"
-                            print(f"{icon} Cargado: {module_path}")
+                            print(f"MODULO: Cargado {module_path}")
                         except Exception as e:
-                            print(f"❌ Error al cargar {module_path}: {e}")
-
-        print("-" * 40)
+                            print(f"MODULO_ERROR: Fallo al cargar {module_path}: {e}")
 
         try:
             synced = await self.tree.sync()
-            print(f"🔃 {len(synced)} Slash Commands sincronizados globalmente.")
+            print(f"SYNC: {len(synced)} Slash Commands sincronizados.")
         except Exception as e:
-            print(f"❌ Error de sincronización de Slash Commands: {e}")
+            print(f"SYNC_ERROR: Fallo en sincronizacion global: {e}")
 
     async def on_ready(self):
-        """Evento que se dispara cuando el bot está listo y conectado."""
-        print("-" * 40)
-        print(f'🚀 {self.user.name} está ONLINE y operando')
-        print(f'🆔 ID: {self.user.id}')
-        print(f'📡 Prefijo global: {DEFAULT_PREFIX}')
-        print("-" * 40)
+        print(f"STATUS: {self.user.name} online.")
+        print(f"ID: {self.user.id}")
+        
         status_text = f"{DEFAULT_PREFIX}comandos o /comandos | Sybaru"
         await self.change_presence(
             activity=discord.CustomActivity(name=status_text)
@@ -98,12 +86,12 @@ async def run_bot():
         if TOKEN:
             await bot.start(TOKEN)
         else:
-            print("❌ ERROR: No se encontró el TOKEN en el archivo .env")
+            print("AUTH_ERROR: TOKEN no definido en .env")
 
 if __name__ == "__main__":
     try:
         asyncio.run(run_bot())
     except KeyboardInterrupt:
-        print("\n👋 Sybaru ha sido apagado manualmente.")
+        print("SISTEMA: Apagado manual detectado.")
     except Exception as e:
-        print(f"⚠️ Error inesperado en la ejecución: {e}")
+        print(f"SISTEMA_ERROR: Excepcion en ejecucion: {e}")

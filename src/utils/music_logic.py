@@ -4,7 +4,6 @@ import asyncio
 import os
 from collections import deque
 
-# --- CONFIGURACIÓN DE EXTRACTOR (YouTube Cookies Integradas) ---
 YTDL_OPTIONS = {
     'format': 'bestaudio/best',
     'extract_flat': 'in_playlist',
@@ -13,7 +12,6 @@ YTDL_OPTIONS = {
     'no_warnings': True,
     'default_search': 'ytsearch',
     'nocheckcertificate': True,
-    # Carga de cookies para evitar el error "Sign in to confirm you are not a bot"
     'cookiefile': 'youtube_cookies.txt', 
     'source_address': '0.0.0.0',
 }
@@ -26,8 +24,6 @@ FFMPEG_OPTIONS = {
 ytdl = yt_dlp.YoutubeDL(YTDL_OPTIONS)
 
 class MusicManager:
-    """Gestiona la reproducción, colas, estados de bucle y sincronización de UI de Sybaru."""
-    
     def __init__(self, bot):
         self.bot = bot
         self.queues = {}          
@@ -35,17 +31,15 @@ class MusicManager:
         self.current_track = {}   
         self.current_messages = {} 
         self.disconnect_tasks = {} 
-        self.song_counters = {} # Rastreador de posición actual
+        self.song_counters = {}
 
     def get_queue(self, guild_id):
-        """Obtiene o crea la cola y el contador para un servidor específico."""
         if guild_id not in self.queues:
             self.queues[guild_id] = deque()
             self.song_counters[guild_id] = 0
         return self.queues[guild_id]
 
     async def actualizar_interfaz(self, target, info):
-        """Envía el Embed de reproducción actualizado con la posición real 'X de Y'."""
         from src.views.music_embeds import create_now_playing_embed
         from src.views.music_buttons import MusicControlView
         
@@ -54,15 +48,12 @@ class MusicManager:
         if not channel: return
 
         is_looping = self.loop_states.get(guild_id, False)
-        
-        # Cálculo dinámico de posiciones para el Embed
         queue = self.get_queue(guild_id)
         posicion_actual = self.song_counters.get(guild_id, 0)
         
         if posicion_actual == 0: posicion_actual = 1
         total_cola = posicion_actual + len(queue)
 
-        # Limpiar mensaje anterior si existe
         if guild_id in self.current_messages:
             try: await self.current_messages[guild_id].delete()
             except: pass 
@@ -78,15 +69,13 @@ class MusicManager:
             msg = await channel.send(embed=embed, view=view)
             self.current_messages[guild_id] = msg
         except Exception as e:
-            print(f"❌ Error al enviar interfaz: {e}")
+            print(f"Error al enviar interfaz: {e}")
 
     def play_next(self, target):
-        """Maneja la transición a la siguiente canción y actualiza el contador de posición."""
         guild_id = target.guild.id
         vc = target.guild.voice_client
         if not vc or not vc.is_connected(): return
 
-        # Cancelar tarea de desconexión si existe
         if guild_id in self.disconnect_tasks:
             self.disconnect_tasks[guild_id].cancel()
             self.disconnect_tasks.pop(guild_id, None)
@@ -94,7 +83,6 @@ class MusicManager:
         queue = self.get_queue(guild_id)
         is_loop = self.loop_states.get(guild_id, False)
         
-        # Lógica de Loop
         if is_loop and self.current_track.get(guild_id):
             queue.appendleft(self.current_track[guild_id])
         else:
@@ -107,7 +95,6 @@ class MusicManager:
             async def start_playing():
                 try:
                     loop = asyncio.get_event_loop()
-                    # Aquí yt-dlp usará el archivo youtube_cookies.txt configurado arriba
                     data = await loop.run_in_executor(
                         None, 
                         lambda: ytdl.extract_info(proxima['webpage_url'], download=False, process=True)
@@ -127,13 +114,12 @@ class MusicManager:
                     )
                     await self.actualizar_interfaz(target, proxima)
                 except Exception as e:
-                    print(f"❌ Error en reproducción (Posible problema de Cookies): {e}")
+                    print(f"Error en reproduccion (Cookies/Network): {e}")
                     await asyncio.sleep(2)
                     self.play_next(target)
 
             self.bot.loop.create_task(start_playing())
         else:
-            # Reset al terminar la cola
             self.song_counters[guild_id] = 0
             self.current_track[guild_id] = None
             self.disconnect_tasks[guild_id] = self.bot.loop.create_task(self._esperar_y_desconectar(guild_id))
@@ -159,7 +145,6 @@ class MusicManager:
         return estado
 
     def stop(self, interaction):
-        """Limpia todo el estado de música del servidor."""
         gid = interaction.guild.id
         if gid in self.disconnect_tasks:
             self.disconnect_tasks[gid].cancel()
@@ -184,7 +169,6 @@ class MusicManager:
         return False
 
     async def buscar_info(self, busqueda):
-        """Busca canciones o procesa enlaces de YouTube usando cookies."""
         loop = asyncio.get_event_loop()
         try:
             es_url = busqueda.startswith(('http', 'www'))
@@ -194,18 +178,16 @@ class MusicManager:
             
             tracks = []
             if 'entries' in data:
-                # Filtrar entradas nulas y limitar a 10 para playlists
                 for entry in [e for e in data['entries'] if e][:10]:
                     tracks.append(self._formatear_track(entry))
             else:
                 tracks.append(self._formatear_track(data))
             return tracks
         except Exception as e:
-            print(f"❌ Error en búsqueda de información: {e}")
+            print(f"Error en busqueda de informacion: {e}")
             return []
 
     def _formatear_track(self, entry):
-        """Estandariza los metadatos de la canción."""
         v_id = entry.get('id')
         thumb = entry.get('thumbnail')
         if (not thumb or "imgur" in thumb) and v_id:
@@ -213,14 +195,13 @@ class MusicManager:
         
         return {
             'webpage_url': entry.get('webpage_url') or f"https://www.youtube.com/watch?v={v_id}",
-            'title': entry.get('title', 'Canción desconocida'),
+            'title': entry.get('title', 'Cancion desconocida'),
             'thumbnail': thumb or 'https://i.imgur.com/8N697X7.png',
             'duration': entry.get('duration', 0),
             'requester': None 
         }
 
     async def _esperar_y_desconectar(self, guild_id):
-        """Espera 5 minutos antes de sacar al bot si no hay música."""
         await asyncio.sleep(300)
         guild = self.bot.get_guild(guild_id)
         if guild and guild.voice_client:
