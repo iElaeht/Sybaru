@@ -1,5 +1,6 @@
 import discord
 import math
+import asyncio
 from discord.ext import commands
 from src.utils.database import save_to_playlist
 
@@ -87,13 +88,36 @@ class MusicControlView(discord.ui.View):
     async def loop(self, interaction: discord.Interaction, button: discord.ui.Button):
         nuevo_estado = self.manager.toggle_loop(interaction.guild_id)
         button.style = discord.ButtonStyle.green if nuevo_estado else discord.ButtonStyle.gray
-        # Editamos el mensaje original para que el botón cambie de color visualmente
         await interaction.response.edit_message(view=self)
 
     @discord.ui.button(emoji="⏹️", style=discord.ButtonStyle.red, row=0)
     async def stop(self, interaction: discord.Interaction, button: discord.ui.Button):
+        """Detiene música, limpia cola y desconecta (Mismo comportamiento que /stop)."""
+        vc = interaction.guild.voice_client
+        
+        # 1. Limpiar tareas de desconexión del manager
+        if hasattr(self.manager, 'disconnect_tasks'):
+            task = self.manager.disconnect_tasks.get(interaction.guild_id)
+            if task:
+                task.cancel()
+                del self.manager.disconnect_tasks[interaction.guild_id]
+
+        # 2. Detener audio y resetear datos internos
+        if vc.is_playing() or vc.is_paused():
+            vc.stop()
+        
         self.manager.stop(interaction)
-        await interaction.response.send_message("⏹️ **Sesión finalizada por el usuario.**", ephemeral=True, delete_after=15)
+
+        # 3. Desconexión física del canal
+        await vc.disconnect()
+
+        # 4. Respuesta visual
+        embed = discord.Embed(
+            title="🏮 Sesión Finalizada",
+            description="⏹️ **La música se ha detenido y el bot se ha desconectado.**",
+            color=discord.Color.red()
+        )
+        await interaction.response.send_message(embed=embed, delete_after=20)
 
     # --- FILA 2: UTILIDADES ---
     @discord.ui.button(label="Favorito", emoji="⭐", style=discord.ButtonStyle.green, row=1)

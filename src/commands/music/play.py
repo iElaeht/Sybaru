@@ -10,7 +10,6 @@ from src.utils.database import get_playlist
 class Play(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
-        # Nos aseguramos de que el bot tenga una instancia única del MusicManager
         if not hasattr(bot, 'music_manager'):
             bot.music_manager = MusicManager(bot)
         self.manager = bot.music_manager
@@ -32,9 +31,8 @@ class Play(commands.Cog):
         buscar: str = None, 
         playlist: app_commands.Choice[str] = None
     ):
-        """Maneja la entrada de música y coordina con el MusicManager."""
+        """Maneja la entrada de música y coordina con el MusicManager de Sybaru."""
         
-        # Defer para darle tiempo al bot de procesar links pesados o búsquedas
         await interaction.response.defer()
 
         # --- VALIDACIONES DE ESTADO ---
@@ -48,7 +46,6 @@ class Play(commands.Cog):
             await msg.delete(delay=15)
             return
 
-        # Conexión automática al canal de voz si no está conectado
         if not interaction.guild.voice_client:
             try:
                 await interaction.user.voice.channel.connect()
@@ -57,7 +54,10 @@ class Play(commands.Cog):
                 return
 
         try:
+            # Obtenemos la cola ANTES de añadir nada para calcular posiciones
             queue = self.manager.get_queue(interaction.guild_id)
+            vc = interaction.guild.voice_client
+            SYBARU_COLOR = discord.Color.from_rgb(43, 45, 49)
 
             # --- ESCENARIO 1: CARGAR FAVORITOS ---
             if playlist and playlist.value == "yes":
@@ -67,6 +67,7 @@ class Play(commands.Cog):
                     await msg.delete(delay=15)
                     return
                 
+                posicion_inicio = len(queue) + 1
                 for titulo, url in canciones_db:
                     queue.append({
                         'title': titulo, 
@@ -76,12 +77,18 @@ class Play(commands.Cog):
                         'thumbnail': None
                     })
                 
-                msg = await interaction.followup.send(f"🌟 **Playlist Personal:** Se han añadido **{len(canciones_db)}** temas a la cola.")
-                await msg.delete(delay=20)
+                embed = discord.Embed(
+                    title="🌟 Colección Personal Cargada",
+                    description=f"Se han sumado **{len(canciones_db)}** temas a la lista.",
+                    color=discord.Color.gold()
+                )
+                embed.add_field(name="📍 Inicio en", value=f"`Posición {posicion_inicio}`", inline=True)
+                embed.add_field(name="📊 Total ahora", value=f"`{len(queue)} canciones`", inline=True)
+                embed.set_footer(text=f"Sybaru Bot • Gestión de Base de Datos")
+                await interaction.followup.send(embed=embed)
 
             # --- ESCENARIO 2: BÚSQUEDA O ENLACE ---
             elif buscar:
-                # Usamos el manager para extraer info de YouTube
                 resultados = await self.manager.buscar_info(buscar)
                 
                 if not resultados:
@@ -89,56 +96,90 @@ class Play(commands.Cog):
                     await msg.delete(delay=15)
                     return
 
-                # Añadir los resultados encontrados a la cola
+                # Calculamos cuántas canciones había antes
+                en_cola_antes = len(queue)
+                
                 for track in resultados:
                     track['requester'] = interaction.user.display_name
                     queue.append(track)
                 
-                # Feedback visual según la cantidad de temas
-                if len(resultados) > 1:
-                    msg = await interaction.followup.send(f"✅ **Colección:** Se añadieron `{len(resultados)}` canciones de la lista.")
-                else:
-                    titulo = resultados[0].get('title', 'Canción')
-                    msg = await interaction.followup.send(f"✅ **En cola:** {titulo}")
+                total_ahora = len(queue)
+                embed = discord.Embed(color=SYBARU_COLOR)
                 
-                await msg.delete(delay=20)
+                # A. Si es una lista de reproducción (varios resultados)
+                if len(resultados) > 1:
+                    embed.title = "📂 Lista de reproducción añadida"
+                    embed.description = f"Se han sumado **{len(resultados)}** canciones."
+                    embed.add_field(name="📊 Total en cola", value=f"`{total_ahora} temas`", inline=True)
+                    embed.set_footer(text=f"Sybaru Bot • Posición final: {total_ahora}")
+                
+                # B. Si el bot YA está tocando (Se añade a la cola)
+                elif vc.is_playing() or vc.is_paused():
+                    track = resultados[0]
+                    # La posición real es el total de la cola ahora mismo
+                    pos_actual = total_ahora 
+                    
+                    embed.title = "⏳ Añadido a la cola"
+                    embed.description = f"**[{track.get('title')}]({track.get('webpage_url')})**"
+                    
+                    # CORRECCIÓN: Ahora muestra "X de Total" correctamente
+                    embed.add_field(
+                        name="📍 Posición", 
+                        value=f"`{pos_actual} de {total_ahora}`", 
+                        inline=True
+                    )
+                    embed.add_field(
+                        name="👤 Pedido por", 
+                        value=f"`{interaction.user.display_name}`", 
+                        inline=True
+                    )
+                    
+                    if track.get('thumbnail'):
+                        embed.set_thumbnail(url=track.get('thumbnail'))
+                    embed.set_footer(text="Sybaru Music • Dale a la ⭐ para guardar")
+                
+                # C. Si el bot estaba libre (Reproducción inmediata)
+                else:
+                    track = resultados[0]
+                    embed.title = "🎶 Reproduciendo ahora"
+                    embed.description = f"**[{track.get('title')}]({track.get('webpage_url')})**"
+                    embed.color = discord.Color.green()
+                    
+                    # Es la primera canción de la lista
+                    embed.add_field(name="📍 Posición", value=f"`1 de {total_ahora}`", inline=True)
+                    
+                    if track.get('thumbnail'):
+                        embed.set_thumbnail(url=track.get('thumbnail'))
+                    embed.set_footer(text="Sybaru Bot • ¡Música maestro!")
+
+                msg = await interaction.followup.send(embed=embed)
+                await msg.delete(delay=30)
 
             # --- INICIO DEL REPRODUCTOR ---
-            vc = interaction.guild.voice_client
-            # Si el bot está libre, empezamos a sonar de inmediato
             if not vc.is_playing() and not vc.is_paused():
                 self.manager.play_next(interaction)
 
         except Exception as e:
-            print(f"❌ Error crítico en comando Play: {e}")
-            msg = await interaction.followup.send(f"❌ Hubo un error procesando la solicitud: {e}", ephemeral=True)
-            await msg.delete(delay=20)
+            print(f"❌ Error crítico en comando Play de Sybaru: {e}")
+            await interaction.followup.send(f"❌ Hubo un error al procesar la música.", ephemeral=True)
 
-    # --- SISTEMA DE AUTOCOMPLETADO ---
+    # --- AUTOCOMPLETADO ---
     @play.autocomplete('buscar')
     async def buscar_autocomplete(self, interaction: discord.Interaction, current: str):
-        """Ofrece sugerencias de búsqueda de YouTube en tiempo real."""
         if not current or len(current) < 3: 
             return []
-            
-        # Si parece un link, no sugerimos nada extra
         if current.startswith(('http', 'www')):
             return [app_commands.Choice(name="🔗 Enlace directo detectado", value=current)]
-            
         try:
-            # Consultamos la API de sugerencias de Google/YouTube
             url = f"http://suggestqueries.google.com/complete/search?client=youtube&ds=yt&q={current}"
             async with aiohttp.ClientSession() as session:
                 async with session.get(url) as response:
                     if response.status == 200:
                         raw_data = await response.text()
                         suggestions = re.findall(r'\["([^"]+)"', raw_data)
-                        # Retornamos las primeras 10 sugerencias
                         return [app_commands.Choice(name=s[:100], value=s) for s in suggestions[1:11]]
-        except Exception: 
-            return []
+        except: return []
         return []
 
-# Función obligatoria para que el bot cargue este archivo como un Cog
 async def setup(bot):
     await bot.add_cog(Play(bot))

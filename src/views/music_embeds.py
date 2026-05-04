@@ -1,9 +1,9 @@
 import discord
 
-def create_now_playing_embed(info, loop_active=False):
+def create_now_playing_embed(info, loop_active=False, current_pos=1, total_queue=1):
     """
-    Transforma la información de la canción en un Embed elegante.
-    Diseño optimizado para Sybaru Music con indicador de estado de Loop.
+    Transforma la información de la canción en un Embed elegante para Sybaru.
+    Incluye el indicador de posición "X de Y" solicitado.
     """
     
     # 1. Extracción de metadatos con seguridad
@@ -45,8 +45,15 @@ def create_now_playing_embed(info, loop_active=False):
         inline=True
     )
     
-    # --- CAMPO DINÁMICO DE REPETICIÓN ---
-    # Este campo responde directamente al estado en el MusicManager
+    # --- NUEVO CAMPO DE POSICIÓN ---
+    # Muestra el formato "X de Y" que definimos
+    embed.add_field(
+        name="📍 Posición", 
+        value=f"`{current_pos} de {total_queue}`", 
+        inline=True
+    )
+    
+    # --- CAMPO DE REPETICIÓN ---
     status_loop = "✅ Activado" if loop_active else "❌ Desactivado"
     embed.add_field(
         name="🔄 Repetición", 
