@@ -1,8 +1,10 @@
 import discord
 import yt_dlp
 import asyncio
+import os
 from collections import deque
 
+# --- CONFIGURACIÓN DE EXTRACTOR (YouTube Cookies Integradas) ---
 YTDL_OPTIONS = {
     'format': 'bestaudio/best',
     'extract_flat': 'in_playlist',
@@ -11,6 +13,9 @@ YTDL_OPTIONS = {
     'no_warnings': True,
     'default_search': 'ytsearch',
     'nocheckcertificate': True,
+    # Carga de cookies para evitar el error "Sign in to confirm you are not a bot"
+    'cookiefile': 'youtube_cookies.txt', 
+    'source_address': '0.0.0.0',
 }
 
 FFMPEG_OPTIONS = {
@@ -53,11 +58,11 @@ class MusicManager:
         # Cálculo dinámico de posiciones para el Embed
         queue = self.get_queue(guild_id)
         posicion_actual = self.song_counters.get(guild_id, 0)
-        # Si por alguna razón el contador es 0 al reproducir, lo ponemos en 1
-        if posicion_actual == 0: posicion_actual = 1
         
+        if posicion_actual == 0: posicion_actual = 1
         total_cola = posicion_actual + len(queue)
 
+        # Limpiar mensaje anterior si existe
         if guild_id in self.current_messages:
             try: await self.current_messages[guild_id].delete()
             except: pass 
@@ -81,19 +86,18 @@ class MusicManager:
         vc = target.guild.voice_client
         if not vc or not vc.is_connected(): return
 
+        # Cancelar tarea de desconexión si existe
         if guild_id in self.disconnect_tasks:
             self.disconnect_tasks[guild_id].cancel()
             self.disconnect_tasks.pop(guild_id, None)
 
         queue = self.get_queue(guild_id)
-        
-        # Lógica de incremento y manejo de Loop
         is_loop = self.loop_states.get(guild_id, False)
         
+        # Lógica de Loop
         if is_loop and self.current_track.get(guild_id):
             queue.appendleft(self.current_track[guild_id])
         else:
-            # Solo aumentamos el contador si NO es una repetición
             self.song_counters[guild_id] = self.song_counters.get(guild_id, 0) + 1
 
         if len(queue) > 0:
@@ -103,6 +107,7 @@ class MusicManager:
             async def start_playing():
                 try:
                     loop = asyncio.get_event_loop()
+                    # Aquí yt-dlp usará el archivo youtube_cookies.txt configurado arriba
                     data = await loop.run_in_executor(
                         None, 
                         lambda: ytdl.extract_info(proxima['webpage_url'], download=False, process=True)
@@ -122,7 +127,7 @@ class MusicManager:
                     )
                     await self.actualizar_interfaz(target, proxima)
                 except Exception as e:
-                    print(f"❌ Error en reproducción: {e}")
+                    print(f"❌ Error en reproducción (Posible problema de Cookies): {e}")
                     await asyncio.sleep(2)
                     self.play_next(target)
 
@@ -135,7 +140,6 @@ class MusicManager:
             self.current_messages.pop(guild_id, None)
 
     def pause(self, interaction):
-        """Pausa la reproducción actual."""
         vc = interaction.guild.voice_client
         if vc and vc.is_playing():
             vc.pause()
@@ -143,7 +147,6 @@ class MusicManager:
         return False
 
     def resume(self, interaction):
-        """Reanuda la reproducción pausada."""
         vc = interaction.guild.voice_client
         if vc and vc.is_paused():
             vc.resume()
@@ -151,13 +154,12 @@ class MusicManager:
         return False
 
     def toggle_loop(self, guild_id):
-        """Alterna el estado del bucle (Loop)."""
         estado = not self.loop_states.get(guild_id, False)
         self.loop_states[guild_id] = estado
         return estado
 
     def stop(self, interaction):
-        """Detiene la música, limpia la cola y resetea contadores."""
+        """Limpia todo el estado de música del servidor."""
         gid = interaction.guild.id
         if gid in self.disconnect_tasks:
             self.disconnect_tasks[gid].cancel()
@@ -167,11 +169,14 @@ class MusicManager:
         self.song_counters[gid] = 0
         self.loop_states[gid] = False
         self.current_track[gid] = None
-        self.current_messages.pop(gid, None)
-        if interaction.guild.voice_client: interaction.guild.voice_client.stop()
+        
+        if gid in self.current_messages:
+            self.current_messages.pop(gid, None)
+            
+        if interaction.guild.voice_client: 
+            interaction.guild.voice_client.stop()
 
     def skip(self, interaction):
-        """Salta a la siguiente canción en la cola."""
         vc = interaction.guild.voice_client
         if vc:
             vc.stop() 
@@ -179,7 +184,7 @@ class MusicManager:
         return False
 
     async def buscar_info(self, busqueda):
-        """Busca canciones o procesa enlaces de YouTube."""
+        """Busca canciones o procesa enlaces de YouTube usando cookies."""
         loop = asyncio.get_event_loop()
         try:
             es_url = busqueda.startswith(('http', 'www'))
@@ -189,17 +194,18 @@ class MusicManager:
             
             tracks = []
             if 'entries' in data:
+                # Filtrar entradas nulas y limitar a 10 para playlists
                 for entry in [e for e in data['entries'] if e][:10]:
                     tracks.append(self._formatear_track(entry))
             else:
                 tracks.append(self._formatear_track(data))
             return tracks
         except Exception as e:
-            print(f"❌ Error en búsqueda: {e}")
+            print(f"❌ Error en búsqueda de información: {e}")
             return []
 
     def _formatear_track(self, entry):
-        """Estandariza los metadatos de la canción para Sybaru."""
+        """Estandariza los metadatos de la canción."""
         v_id = entry.get('id')
         thumb = entry.get('thumbnail')
         if (not thumb or "imgur" in thumb) and v_id:
@@ -214,7 +220,7 @@ class MusicManager:
         }
 
     async def _esperar_y_desconectar(self, guild_id):
-        """Tarea en segundo plano para desconectar al bot tras 5 minutos de inactividad."""
+        """Espera 5 minutos antes de sacar al bot si no hay música."""
         await asyncio.sleep(300)
         guild = self.bot.get_guild(guild_id)
         if guild and guild.voice_client:
