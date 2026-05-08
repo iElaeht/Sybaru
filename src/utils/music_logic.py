@@ -9,6 +9,7 @@ YTDL_OPTIONS = {
     'extract_flat': 'in_playlist',
     'noplaylist': False,
     'quiet': True,
+    'geo_bypass': True,
     'no_warnings': True,
     'default_search': 'ytsearch',
     'nocheckcertificate': True,
