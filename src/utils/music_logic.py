@@ -5,7 +5,7 @@ import os
 from collections import deque
 
 YTDL_OPTIONS = {
-    'format': 'bestaudio/best',
+    'format': 'bestaudio[ext=m4a]/bestaudio/best',
     'extract_flat': 'in_playlist',
     'noplaylist': False,
     'quiet': True,
