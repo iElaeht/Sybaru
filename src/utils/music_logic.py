@@ -9,12 +9,16 @@ YTDL_OPTIONS = {
     'extract_flat': 'in_playlist',
     'noplaylist': False,
     'quiet': True,
-    'geo_bypass': True,
     'no_warnings': True,
     'default_search': 'ytsearch',
     'nocheckcertificate': True,
+    # RUTA CRÍTICA: Asegúrate de que en Render el archivo se llame exactamente 'youtube_cookies'
     'cookiefile': '/etc/secrets/youtube_cookies', 
-    'source_address': '0.0.0.0',
+    
+    # AJUSTES PARA EVITAR BLOQUEOS EN RENDER:
+    'source_address': '0.0.0.0', # Fuerza IPv4, ya que las IPv6 de centros de datos suelen estar bloqueadas
+    'geo_bypass': True,
+    'user_agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36',
 }
 
 FFMPEG_OPTIONS = {
@@ -96,7 +100,7 @@ class MusicManager:
             async def start_playing():
                 try:
                     loop = asyncio.get_event_loop()
-                    # Usamos process=True para obtener la URL directa final
+                    # Obtenemos la info fresca justo antes de sonar
                     data = await loop.run_in_executor(
                         None, 
                         lambda: ytdl.extract_info(proxima['webpage_url'], download=False, process=True)
@@ -105,15 +109,12 @@ class MusicManager:
 
                     source_url = data.get('url')
                     
-                    # MEJORA AQUÍ: Especificamos el ejecutable "ffmpeg" y añadimos reconexión
-                    # El ejecutable="ffmpeg" es VITAL en Render/Linux
                     raw_source = discord.FFmpegPCMAudio(
                         source_url, 
                         executable="ffmpeg", 
                         **FFMPEG_OPTIONS
                     )
                     
-                    # Envolvemos en un transformador de volumen para mayor estabilidad
                     source = discord.PCMVolumeTransformer(raw_source)
 
                     vc.play(
@@ -124,8 +125,7 @@ class MusicManager:
                     await self.actualizar_interfaz(target, proxima)
 
                 except Exception as e:
-                    print(f"Error crítico en MusicManager: {e}")
-                    # Si falla, esperamos un poco y saltamos a la siguiente para no buclear el error
+                    print(f"Error en reproducción: {e}")
                     await asyncio.sleep(2)
                     self.play_next(target)
 
@@ -136,6 +136,7 @@ class MusicManager:
             self.disconnect_tasks[guild_id] = self.bot.loop.create_task(self._esperar_y_desconectar(guild_id))
             self.current_messages.pop(guild_id, None)
 
+    # ... (Resto de funciones: pause, resume, toggle_loop, stop, skip, buscar_info, etc. permanecen igual)
     def pause(self, interaction):
         vc = interaction.guild.voice_client
         if vc and vc.is_playing():
@@ -195,7 +196,7 @@ class MusicManager:
                 tracks.append(self._formatear_track(data))
             return tracks
         except Exception as e:
-            print(f"Error en busqueda de informacion: {e}")
+            print(f"Error en búsqueda: {e}")
             return []
 
     def _formatear_track(self, entry):
@@ -206,7 +207,7 @@ class MusicManager:
         
         return {
             'webpage_url': entry.get('webpage_url') or f"https://www.youtube.com/watch?v={v_id}",
-            'title': entry.get('title', 'Cancion desconocida'),
+            'title': entry.get('title', 'Canción desconocida'),
             'thumbnail': thumb or 'https://i.imgur.com/8N697X7.png',
             'duration': entry.get('duration', 0),
             'requester': None 
