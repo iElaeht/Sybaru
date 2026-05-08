@@ -95,26 +95,36 @@ class MusicManager:
             async def start_playing():
                 try:
                     loop = asyncio.get_event_loop()
+                    # Usamos process=True para obtener la URL directa final
                     data = await loop.run_in_executor(
                         None, 
                         lambda: ytdl.extract_info(proxima['webpage_url'], download=False, process=True)
                     )
                     if not data: return self.play_next(target)
 
-                    v_id = data.get('id')
-                    if v_id: proxima['thumbnail'] = f"https://i.ytimg.com/vi/{v_id}/hqdefault.jpg"
+                    source_url = data.get('url')
+                    
+                    # MEJORA AQUÍ: Especificamos el ejecutable "ffmpeg" y añadimos reconexión
+                    # El ejecutable="ffmpeg" es VITAL en Render/Linux
+                    raw_source = discord.FFmpegPCMAudio(
+                        source_url, 
+                        executable="ffmpeg", 
+                        **FFMPEG_OPTIONS
+                    )
+                    
+                    # Envolvemos en un transformador de volumen para mayor estabilidad
+                    source = discord.PCMVolumeTransformer(raw_source)
 
-                    source_url = data.get('url') or (data['formats'][0]['url'] if data.get('formats') else None)
-                    if not source_url: return self.play_next(target)
-
-                    source = discord.FFmpegPCMAudio(source_url, **FFMPEG_OPTIONS)
                     vc.play(
                         source, 
                         after=lambda e: self.bot.loop.call_soon_threadsafe(self.play_next, target)
                     )
+                    
                     await self.actualizar_interfaz(target, proxima)
+
                 except Exception as e:
-                    print(f"Error en reproduccion (Cookies/Network): {e}")
+                    print(f"Error crítico en MusicManager: {e}")
+                    # Si falla, esperamos un poco y saltamos a la siguiente para no buclear el error
                     await asyncio.sleep(2)
                     self.play_next(target)
 
