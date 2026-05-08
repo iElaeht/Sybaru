@@ -12,7 +12,7 @@ YTDL_OPTIONS = {
     'no_warnings': True,
     'default_search': 'ytsearch',
     'nocheckcertificate': True,
-    'cookiefile': 'youtube_cookies.txt', 
+    'cookiefile': '/etc/secrets/youtube_cookies', 
     'source_address': '0.0.0.0',
 }
 
