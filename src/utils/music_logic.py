@@ -5,20 +5,15 @@ import os
 from collections import deque
 
 YTDL_OPTIONS = {
-    'format': 'bestaudio[ext=m4a]/bestaudio/best',
+    'format': 'bestaudio/best',
     'extract_flat': 'in_playlist',
     'noplaylist': False,
     'quiet': True,
     'no_warnings': True,
     'default_search': 'ytsearch',
     'nocheckcertificate': True,
-    # RUTA CRÍTICA: Asegúrate de que en Render el archivo se llame exactamente 'youtube_cookies'
-    'cookiefile': '/etc/secrets/youtube_cookies', 
-    
-    # AJUSTES PARA EVITAR BLOQUEOS EN RENDER:
-    'source_address': '0.0.0.0', # Fuerza IPv4, ya que las IPv6 de centros de datos suelen estar bloqueadas
-    'geo_bypass': True,
-    'user_agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36',
+    'cookiefile': 'youtube_cookies.txt', 
+    'source_address': '0.0.0.0',
 }
 
 FFMPEG_OPTIONS = {
@@ -100,32 +95,26 @@ class MusicManager:
             async def start_playing():
                 try:
                     loop = asyncio.get_event_loop()
-                    # Obtenemos la info fresca justo antes de sonar
                     data = await loop.run_in_executor(
                         None, 
                         lambda: ytdl.extract_info(proxima['webpage_url'], download=False, process=True)
                     )
                     if not data: return self.play_next(target)
 
-                    source_url = data.get('url')
-                    
-                    raw_source = discord.FFmpegPCMAudio(
-                        source_url, 
-                        executable="ffmpeg", 
-                        **FFMPEG_OPTIONS
-                    )
-                    
-                    source = discord.PCMVolumeTransformer(raw_source)
+                    v_id = data.get('id')
+                    if v_id: proxima['thumbnail'] = f"https://i.ytimg.com/vi/{v_id}/hqdefault.jpg"
 
+                    source_url = data.get('url') or (data['formats'][0]['url'] if data.get('formats') else None)
+                    if not source_url: return self.play_next(target)
+
+                    source = discord.FFmpegPCMAudio(source_url, **FFMPEG_OPTIONS)
                     vc.play(
                         source, 
                         after=lambda e: self.bot.loop.call_soon_threadsafe(self.play_next, target)
                     )
-                    
                     await self.actualizar_interfaz(target, proxima)
-
                 except Exception as e:
-                    print(f"Error en reproducción: {e}")
+                    print(f"Error en reproduccion (Cookies/Network): {e}")
                     await asyncio.sleep(2)
                     self.play_next(target)
 
@@ -136,7 +125,6 @@ class MusicManager:
             self.disconnect_tasks[guild_id] = self.bot.loop.create_task(self._esperar_y_desconectar(guild_id))
             self.current_messages.pop(guild_id, None)
 
-    # ... (Resto de funciones: pause, resume, toggle_loop, stop, skip, buscar_info, etc. permanecen igual)
     def pause(self, interaction):
         vc = interaction.guild.voice_client
         if vc and vc.is_playing():
@@ -196,7 +184,7 @@ class MusicManager:
                 tracks.append(self._formatear_track(data))
             return tracks
         except Exception as e:
-            print(f"Error en búsqueda: {e}")
+            print(f"Error en busqueda de informacion: {e}")
             return []
 
     def _formatear_track(self, entry):
@@ -207,7 +195,7 @@ class MusicManager:
         
         return {
             'webpage_url': entry.get('webpage_url') or f"https://www.youtube.com/watch?v={v_id}",
-            'title': entry.get('title', 'Canción desconocida'),
+            'title': entry.get('title', 'Cancion desconocida'),
             'thumbnail': thumb or 'https://i.imgur.com/8N697X7.png',
             'duration': entry.get('duration', 0),
             'requester': None 

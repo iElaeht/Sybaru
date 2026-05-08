@@ -2,26 +2,9 @@ import discord
 import os
 import asyncio
 import sys
-import threading
-import aiohttp
 from discord.ext import commands
 from dotenv import load_dotenv
-from fastapi import FastAPI
-import uvicorn
-
-# --- CONFIGURACIÓN DE FASTAPI (Para mantener vivo en Render) ---
-app = FastAPI()
-
-@app.get("/")
-def read_root():
-    return {"status": "Sybaru Bot Operacional", "port": os.getenv("PORT", "10000")}
-
-def run_api():
-    port = int(os.getenv("PORT", 10000))
-    print(f"SISTEMA: API de vida iniciada en el puerto {port}")
-    uvicorn.run(app, host="0.0.0.0", port=port, log_level="warning")
-
-# --- LÓGICA DEL BOT ---
+from src.utils.database import init_db, get_guild_prefix
 
 if sys.platform == 'win32':
     asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
@@ -30,18 +13,10 @@ load_dotenv()
 TOKEN = os.getenv('TOKEN')
 DEFAULT_PREFIX = os.getenv('PREFIX', '/')
 
-try:
-    from src.utils.database import init_db, get_guild_prefix
-except ImportError:
-    print("SISTEMA_ERROR: No se encontró 'src.utils.database'.")
-
 def get_prefix(bot, message):
     if not message.guild:
         return DEFAULT_PREFIX
-    try:
-        return get_guild_prefix(message.guild.id, DEFAULT_PREFIX)
-    except:
-        return DEFAULT_PREFIX
+    return get_guild_prefix(message.guild.id, DEFAULT_PREFIX)
 
 class SybaruBot(commands.Bot):
     def __init__(self):
@@ -61,31 +36,12 @@ class SybaruBot(commands.Bot):
     async def setup_hook(self):
         print("SISTEMA: Inicializando procesos...")
 
-        # --- SECCIÓN CORREGIDA: PARCHE DE COOKIES ---
-        # He comentado estas líneas porque estaban creando un archivo local que entraba en conflicto
-        # con el "Secret File" de Render. Al usar Secret Files, el bot ya busca las cookies en 
-        # /etc/secrets/youtube_cookies, por lo que intentar crearlas aquí desde una variable de entorno
-        # causaba el error "Sign in to confirm you're not a bot".
-        
-        """
-        cookies = os.getenv("youtube_cookies")
-        if cookies:
-            try:
-                with open("youtube_cookies.txt", "w", encoding="utf-8") as f:
-                    f.write(cookies)
-                print("SISTEMA: Archivo youtube_cookies.txt generado.")
-            except Exception as e:
-                print(f"SISTEMA_ERROR: Fallo al crear archivo de cookies: {e}")
-        """
-
-        # --- INICIO DE BASE DE DATOS ---
         try:
             init_db()
             print("DB: Sincronizacion completada.")
         except Exception as e:
-            print(f"DB_ERROR: Fallo en base de datos: {e}")
+            print(f"DB_ERROR: Fallo critico en inicio de base de datos: {e}")
 
-        # --- CARGA DE COMANDOS ---
         folders_to_load = [
             os.path.join('src', 'commands'),
             os.path.join('src', 'utils_cmd') 
@@ -109,36 +65,33 @@ class SybaruBot(commands.Bot):
                         except Exception as e:
                             print(f"MODULO_ERROR: Fallo al cargar {module_path}: {e}")
 
-        # --- SINCRONIZACIÓN DE SLASH COMMANDS ---
         try:
             synced = await self.tree.sync()
             print(f"SYNC: {len(synced)} Slash Commands sincronizados.")
         except Exception as e:
-            print(f"SYNC_ERROR: Fallo en sincronizacion: {e}")
+            print(f"SYNC_ERROR: Fallo en sincronizacion global: {e}")
 
     async def on_ready(self):
-        print(f"STATUS: {self.user.name} online en Render 24/7.")
+        print(f"STATUS: {self.user.name} online.")
         print(f"ID: {self.user.id}")
         
-        status_text = f"{DEFAULT_PREFIX}comandos | Sybaru"
+        status_text = f"{DEFAULT_PREFIX}comandos o /comandos | Sybaru"
         await self.change_presence(
             activity=discord.CustomActivity(name=status_text)
         )
 
 async def run_bot():
-    threading.Thread(target=run_api, daemon=True).start()
-    
     bot = SybaruBot()
     async with bot:
         if TOKEN:
             await bot.start(TOKEN)
         else:
-            print("AUTH_ERROR: TOKEN no definido en las variables de Render.")
+            print("AUTH_ERROR: TOKEN no definido en .env")
 
 if __name__ == "__main__":
     try:
         asyncio.run(run_bot())
     except KeyboardInterrupt:
-        print("SISTEMA: Apagado manual.")
+        print("SISTEMA: Apagado manual detectado.")
     except Exception as e:
         print(f"SISTEMA_ERROR: Excepcion en ejecucion: {e}")
