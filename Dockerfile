@@ -1,5 +1,5 @@
 # Usamos una imagen ligera de Python
-FROM python:3.10-slim
+FROM python:3.13-slim
 
 # Instalamos FFmpeg y herramientas básicas del sistema
 # Eliminamos la limpieza de caché al final para reducir el tamaño
