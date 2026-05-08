@@ -2,9 +2,28 @@ import discord
 import os
 import asyncio
 import sys
+import threading
+import aiohttp
 from discord.ext import commands
 from dotenv import load_dotenv
-from src.utils.database import init_db, get_guild_prefix
+from fastapi import FastAPI
+import uvicorn
+
+# --- CONFIGURACIÓN DE FASTAPI (Para mantener vivo en Render) ---
+app = FastAPI()
+
+@app.get("/")
+def read_root():
+    # Render visitará esta ruta para saber que el bot está activo
+    return {"status": "Sybaru Bot Operacional", "port": os.getenv("PORT", "10000")}
+
+def run_api():
+    # Render asigna el puerto dinámicamente
+    port = int(os.getenv("PORT", 10000))
+    print(f"SISTEMA: API de vida iniciada en el puerto {port}")
+    uvicorn.run(app, host="0.0.0.0", port=port, log_level="warning")
+
+# --- LÓGICA DEL BOT ---
 
 if sys.platform == 'win32':
     asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
@@ -13,10 +32,19 @@ load_dotenv()
 TOKEN = os.getenv('TOKEN')
 DEFAULT_PREFIX = os.getenv('PREFIX', '/')
 
+# Importación segura de la base de datos
+try:
+    from src.utils.database import init_db, get_guild_prefix
+except ImportError:
+    print("SISTEMA_ERROR: No se encontró 'src.utils.database'.")
+
 def get_prefix(bot, message):
     if not message.guild:
         return DEFAULT_PREFIX
-    return get_guild_prefix(message.guild.id, DEFAULT_PREFIX)
+    try:
+        return get_guild_prefix(message.guild.id, DEFAULT_PREFIX)
+    except:
+        return DEFAULT_PREFIX
 
 class SybaruBot(commands.Bot):
     def __init__(self):
@@ -40,7 +68,7 @@ class SybaruBot(commands.Bot):
             init_db()
             print("DB: Sincronizacion completada.")
         except Exception as e:
-            print(f"DB_ERROR: Fallo critico en inicio de base de datos: {e}")
+            print(f"DB_ERROR: Fallo en base de datos: {e}")
 
         folders_to_load = [
             os.path.join('src', 'commands'),
@@ -69,29 +97,37 @@ class SybaruBot(commands.Bot):
             synced = await self.tree.sync()
             print(f"SYNC: {len(synced)} Slash Commands sincronizados.")
         except Exception as e:
-            print(f"SYNC_ERROR: Fallo en sincronizacion global: {e}")
+            print(f"SYNC_ERROR: Fallo en sincronizacion: {e}")
 
     async def on_ready(self):
-        print(f"STATUS: {self.user.name} online.")
+        print(f"STATUS: {self.user.name} online en Render.")
         print(f"ID: {self.user.id}")
         
-        status_text = f"{DEFAULT_PREFIX}comandos o /comandos | Sybaru"
+        status_text = f"{DEFAULT_PREFIX}comandos | Sybaru"
         await self.change_presence(
             activity=discord.CustomActivity(name=status_text)
         )
 
 async def run_bot():
+    # 1. Lanzamos el servidor FastAPI en un hilo paralelo
+    threading.Thread(target=run_api, daemon=True).start()
+    
+    # 2. Parche de red para evitar bloqueos de certificados en la nube
+    connector = aiohttp.TCPConnector(ssl=False)
+    
     bot = SybaruBot()
     async with bot:
         if TOKEN:
+            # Inyectamos el conector seguro
+            bot.http.connector = connector
             await bot.start(TOKEN)
         else:
-            print("AUTH_ERROR: TOKEN no definido en .env")
+            print("AUTH_ERROR: TOKEN no definido.")
 
 if __name__ == "__main__":
     try:
         asyncio.run(run_bot())
     except KeyboardInterrupt:
-        print("SISTEMA: Apagado manual detectado.")
+        print("SISTEMA: Apagado manual.")
     except Exception as e:
         print(f"SISTEMA_ERROR: Excepcion en ejecucion: {e}")
