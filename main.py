@@ -14,11 +14,9 @@ app = FastAPI()
 
 @app.get("/")
 def read_root():
-    # Render visitará esta ruta cada pocos minutos
     return {"status": "Sybaru Bot Operacional", "port": os.getenv("PORT", "10000")}
 
 def run_api():
-    # Render asigna el puerto dinámicamente, por defecto 10000
     port = int(os.getenv("PORT", 10000))
     print(f"SISTEMA: API de vida iniciada en el puerto {port}")
     uvicorn.run(app, host="0.0.0.0", port=port, log_level="warning")
@@ -32,7 +30,6 @@ load_dotenv()
 TOKEN = os.getenv('TOKEN')
 DEFAULT_PREFIX = os.getenv('PREFIX', '/')
 
-# Importación segura de la base de datos
 try:
     from src.utils.database import init_db, get_guild_prefix
 except ImportError:
@@ -64,8 +61,13 @@ class SybaruBot(commands.Bot):
     async def setup_hook(self):
         print("SISTEMA: Inicializando procesos...")
 
-        # --- PARCHE DE COOKIES PARA YOUTUBE ---
-        # Esto soluciona que el bot entre y se salga del VC
+        # --- SECCIÓN CORREGIDA: PARCHE DE COOKIES ---
+        # He comentado estas líneas porque estaban creando un archivo local que entraba en conflicto
+        # con el "Secret File" de Render. Al usar Secret Files, el bot ya busca las cookies en 
+        # /etc/secrets/youtube_cookies, por lo que intentar crearlas aquí desde una variable de entorno
+        # causaba el error "Sign in to confirm you're not a bot".
+        
+        """
         cookies = os.getenv("youtube_cookies")
         if cookies:
             try:
@@ -74,6 +76,7 @@ class SybaruBot(commands.Bot):
                 print("SISTEMA: Archivo youtube_cookies.txt generado.")
             except Exception as e:
                 print(f"SISTEMA_ERROR: Fallo al crear archivo de cookies: {e}")
+        """
 
         # --- INICIO DE BASE DE DATOS ---
         try:
@@ -123,10 +126,8 @@ class SybaruBot(commands.Bot):
         )
 
 async def run_bot():
-    # 1. Iniciamos FastAPI en un hilo aparte para no bloquear al bot
     threading.Thread(target=run_api, daemon=True).start()
     
-    # 2. Iniciamos el bot
     bot = SybaruBot()
     async with bot:
         if TOKEN:
